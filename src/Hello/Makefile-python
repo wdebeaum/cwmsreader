@@ -1,0 +1,18 @@
+MODULE=Hello
+# For pure Python:
+MAIN=Hello.py
+SRCS=Hello.py
+
+# For Jython:
+#USES=TRIPS.TripsModule TRIPS.KQML TRIPS.util
+#MAIN=Hello-jython.py
+#SRCS=Hello-jython.py
+
+# include this line if you have a requirements.txt listing your python deps;
+# these will be installed using pip in a virtualenv, and your program will be
+# run in that virtualenv
+#REQUIREMENTS=requirements.txt
+
+CONFIGDIR=../config
+include $(CONFIGDIR)/python/prog.mk
+

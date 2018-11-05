@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>PDFExtractor</title>
+<meta charset="UTF-8">
+<style type="text/css">
+code, code pre {
+  background-color: LightGray;
+}
+var {
+  background-color: SkyBlue;
+}
+</style>
+</head>
+<body>
+<h1>PDFExtractor</h1>
+William de Beaumont<br>
+$Date: 2018/11/02 16:04:40 $
+
+<h2>Introduction</h2>
+<p>PDFExtractor is a TRIPS module that displays pages of PDF files, allows the user to select rectangular regions within those pages, extracts tabular data within those regions, and displays the extracted data tables. It uses <a href="https://tabula.technology/">Tabula</a> for table extraction, and <a href="https://pdfbox.apache.org/">Apache PDFBox</a> for reading and drawing PDF files.</p>
+
+<p>In this document, computer code is displayed like <code>this</code>, and variables like <code><var>this</var></code>. Optional parts are within square brackets <code>[ ]</code>, and alternatives are separated by pipes within curly braces <code>{ | | }</code>.</p>
+
+<h2>Installation</h2>
+<p>PDFExtractor can be installed in the usual way:</p>
+<code><pre>
+  make
+  make install
+</pre></code>
+<p>Among other things, <code>make</code> will download a jar file that includes both Tabula and PDFBox, so be sure to have a connection to the Internet before you run <code>make</code>.</p>
+
+<h2>Usage</h2>
+<p>Run PDFExtractor like any other TRIPS module:</p>
+<code><pre>
+  <var>$TRIPS_BASE</var>/bin/PDFExtractor [ -connect { <var>host</var>:<var>port</var> | no } ]
+</pre></code>
+
+<p>Or, since it runs on the JVM, you may start it by sending a KQML message to the Facilitator like this:</p>
+<code><pre>
+  (request
+    :receiver Facilitator
+    :content (start-module
+               :name pdfextractor
+	       :class TRIPS.PDFExtractor.PDFExtractor
+	       :urlclasspath ("<var>$TRIPS_BASE</var>/etc/java/TRIPS.PDFExtractor.jar"
+                              "<var>$TRIPS_BASE</var>/etc/java/TRIPS.TripsModule.jar"
+                              "<var>$TRIPS_BASE</var>/etc/java/TRIPS.KQML.jar"
+                              "<var>$TRIPS_BASE</var>/etc/java/TRIPS.util.jar"
+                              "<var>$TRIPS_BASE</var>/etc/java/TRIPS.util.cwc.jar"
+                              "<var>$TRIPS_BASE</var>/etc/java/TRIPS.ChartDisplay.jar"
+                              "<var>$TRIPS_BASE</var>/etc/java/tabula-1.0.2-jar-with-dependencies.jar"
+			      )
+               :argv ( [ "-connect" "<var>host</var>:<var>port</var>" ] )
+               )
+    )
+</pre></code>
+
+<h3>The <code>display</code> request</h3>
+<code><pre>
+  (request :content (display
+    :file (file :name "<var>filename.pdf</var>")
+    [ :page <var>page-index</var> ]
+    [ <var>window-config...</var> ]
+    ))
+</pre></code>
+
+<p>This will load <var>filename.pdf</var> as a PDF document and display it in a new window, starting on the indexed page (default <code>:page 0</code>). It will also generate two reports: one that the window <code>opened</code> (see Window Management), and another saying which page is displayed in it:</p>
+
+<code><pre>
+  (tell :content (report :content (displayed
+    :what
+      (page
+	:id <var>page-ID</var>
+	:document <var>document-ID</var>
+	:index <var>page-index</var>)
+    :where <var>window-ID</var>
+    )))
+</pre></code>
+
+<p>Pressing the "Page Up", "Page Down", "Home", or "End" keys in this window, or scrolling with the mouse wheel/trackpad, will change which page is displayed, resulting in another <code>displayed</code> report for each page displayed.</p>
+
+<p>Note that while the <var>page-ID</var> will have a number in it, this number is not the <var>page-index</var> or any other kind of page number. It's just a serial number for the ID.</p>
+
+<p>Dragging the left mouse button will select a rectangular region of the currently displayed page, resulting in a report like this:</p>
+<code><pre>
+  (tell :content (report :content (selected :what
+    (rectangle :id <var>region-id</var> :page <var>page-index</var> :x <var>min-x</var> :y <var>min-y</var> :w <var>width</var> :h <var>height</var>)
+    )))
+</pre></code>
+
+<p>Dragging the left mouse button starting near the edge or corner of an existing highlighted region will instead move that edge or corner.</p>
+
+<p>If the document is already being displayed, this request will instead just set which page is being displayed and the configuration of the window the document is being displayed in. (You can also use the <code>configure</code> request for the latter function.)</p>
+
+<h3>The <code>detect-table-regions</code> request</h3>
+
+<p>Instead of manually selecting regions, you can also ask Tabula to do it for you using a request like this:</p>
+
+<code><pre>
+  (request :content (detect-table-regions :page <var>page-id</var>))
+</pre></code>
+
+<p>Which will get a reply like this, with zero or more <code>rectangle</code> structures in the same format as in the <code>selected</code> report above:</p>
+
+<code><pre>
+  (reply :content (report :content (answer :regions (<var>rect1</var> <var>rect2</var> ...))))
+</pre></code>
+
+<h3>The <code>parse-table</code> request</h3>
+<code><pre>
+  (request :content (parse-table :region <var>region-id</var>))
+</pre></code>
+
+<p>This will call Tabula on a previously-selected region identified by its <var>region-id</var>. Selecting a table that looks like this and calling <code>parse-table</code> on it:</p>
+
+<table>
+<tr><td><var>0,0</var></td><td><var>0,1</var></td><td><var>0,2</var></td></tr>
+<tr><td><var>1,0</var></td><td><var>1,1</var></td><td><var>1,2</var></td></tr>
+<tr><td><var>2,0</var></td><td><var>2,1</var></td><td><var>2,2</var></td></tr>
+<tr><td><var>3,0</var></td><td><var>3,1</var></td><td><var>3,2</var></td></tr>
+</table>
+
+<p>should result in a reply like this:</p>
+
+<code><pre>
+  (reply :content (report :content (answer :table
+    (table :id <var>table-id</var> :data (
+      ("<var>0,0</var>" "<var>0,1</var>" "<var>0,2</var>")
+      ("<var>1,0</var>" "<var>1,1</var>" "<var>1,2</var>")
+      ("<var>2,0</var>" "<var>2,1</var>" "<var>2,2</var>")
+      ("<var>3,0</var>" "<var>3,1</var>" "<var>3,2</var>")
+      ))
+    )))
+</pre></code>
+
+<p>Note that the <var>table-id</var> is distinct from the <var>region-id</var>.</p>
+
+<h3>The <code>display-table</code> request</h3>
+<code><pre>
+  (request :content (display-table
+    :table <var>table-id</var>
+    [ <var>window-config...</var> ]
+    ))
+</pre></code>
+
+<p>This will create a new window containing a spreadsheet-like display of the data in the table identified by its <var>table-id</var>. Selecting a row in this display will result in a report like this:</p>
+
+<code><pre>
+  (tell :content (report :content (selected :what
+    (row :table <var>table-id</var> :index <var>row-index</var>)
+    )))
+</pre></code>
+
+<h3>The <code>select</code> and <code>deselect</code> requests</h3>
+<code><pre>
+  (request :content ({ select | deselect } :what <var>row-or-region</var>))
+</pre></code>
+
+<p>This will select or deselect the table row or page region (rectangle) described by <var>row-or-region</var>. For a table row, specify the <var>table-id</var> and <var>row-index</var> like this:</p>
+
+<code><pre>
+  (request :content (select :what
+    (row :table <var>table-id</var> :index <var>row-index</var>)))
+</pre></code>
+
+<p>For a page region, either specify everything necessary to create a new rectangle:</p>
+
+<code><pre>
+  (request :content (select :what
+    (rectangle
+      :page <var>page</var>
+      :x <var>min-x</var> :y <var>min-y</var>
+      :w <var>width</var> :h <var>height</var>)))
+</pre></code>
+
+<p>(where <var>page</var> is either an ID or a structure like <code>(page :document <var>document-id</var> :index <var>page-index</var>)</code>)</p>
+
+<p>Or specify a rectangle by its ID (but still in a <code>rectangle</code> structure so we know the type):</p>
+
+<code><pre>
+  (request :content (select :what (rectangle :id <var>region-id</var>)))
+</pre></code>
+
+<h3>The <code>edit-table</code> request</h3>
+<code><pre>
+  (request :content (edit-table :table <var>table-ID</var> :edit <var>edit-description</var>))
+</pre></code>
+
+<p>This will edit the table identified by the <var>table-ID</var> according to the <var>edit-description</var>, which may be any of the following:</p>
+
+<dl>
+ <dt><code>(merge-tables :others (<var>other-table-ID-1</var> <var>other-table-ID-2</var> ...))</code>
+  <dd>Add all the rows from the other tables to the end of this table. All tables must have the same number of columns.
+ <dt><code>(delete-rows :first <var>first-row-index</var> :last <var>last-row-index</var>)</code>
+  <dd>Delete a contiguous group of rows, indexed from <var>first-row-index</var> up to and including <var>last-row-index</var>.
+ <dt><code>(delete-columns :first <var>first-column-index</var> :last <var>last-column-index</var>)</code>
+  <dd>Ditto for columns.
+ <dt><code>(merge-rows :first <var>first-row-index</var> :last <var>last-row-index</var>)</code>
+  <dd>Replace a contiguous group of rows with a single row. In the new cells, the old rows will be separated by newlines.
+ <dt><code>(merge-columns :first <var>first-column-index</var> :last <var>last-column-index</var>)</code>
+  <dd>Replace a contiguous group of columns with a single column. In the new cells, the old columns will be separated by spaces.
+ <dt><code>(select-and-reorder-rows :rows (<var>row-index-1</var> <var>row-index-2</var> ...))</code>
+  <dd>Select only specific rows to remain in the table, and put them in the order they appear in <code>:rows</code>.
+ <dt><code>(select-and-reorder-columns :columns (<var>column-index-1</var> <var>column-index-2</var> ...))</code>
+  <dd>Ditto for columns.
+ <dt><code>(split-column :at-x <var>x</var>)</code>
+  <dd>Split a column by adding a new column boundary at the given <var>x</var> coordinate (in pixels). Note that there is no <code>split-row</code>; the rows Tabula generates initially will always be a single line of text, so if you want them split, just don't merge them in the first place.
+</dl>
+
+<p>The reply to <code>edit-table</code> request is in the same format as for the <code>parse-table</code> request, and includes the <code>:data</code> for the table after the edit was applied.</p>
+
+<h3>Window Management and Failures</h3>
+
+<p>PDFExtractor supports the same KQML window management and failure reporting interfaces as ChartDisplay. See <a href="../ChartDisplay/README.html">the ChartDisplay README</a> for details. Note that PDFExtractor extends the <code>describe</code> request to cover anything in PDFExtractor that has an ID.</p>
+
+<h3>Extended Example</h3>
+
+<p>Here is an extended example showing many of the features of PDFExtractor. It uses a PDF file I <a href="http://www.swvt.uga.edu/2017/SYSR17/AP103-9-Final.pdf">downloaded</a> to the local file named <code>/u/wdebeaum/Download/AP103-9-Final.pdf</code>. Comments appear inline after <code>;</code> characters. The <code>request</code> messages are to PDFExtractor, and the <code>reply</code> and <code>tell</code> messages are from PDFExtractor.</p>
+
+<code><pre>
+;; display the file in question, on page index 18
+;; (it's labeled 13 because they start from 1 and start over after page 6)
+(request :content (display :file (file :name "/u/wdebeaum/Download/AP103-9-Final.pdf") :page 18))
+;; a new window opens
+(tell :content (report :content (opened :what pdfextractor-win-0 :who sys)))
+;; and the requested page is displayed
+(tell :content (report :content (displayed
+  :what (page :id page20 :document document1 :index 18)
+  :where pdfextractor-win-0
+  )))
+;; automatically detect the part of this page that is a table
+(request :content (detect-table-regions :page page20))
+;; we detect only one rectangle that could be a table (it also appears higlighted in the display)
+(reply :content (report :content (answer :regions (
+  (rectangle :id region92
+    :page (page :id page20 :document document1 :index 18)
+    :x 0.0 :y 89.0 :w 545.0 :h 592.0)
+  ))))
+;; parse the table that's there
+(request :content (parse-table :region region92))
+;; we get the data and the ID of a new table
+(reply :content (report :content (answer :table
+  (table :id table93 :data (
+    ("" "" "2-Year" "" "" "" "2017 Data" "" "")
+    ("Company or" "" "Average" "" "" "" "Plant" "Wt of" "Seed")
+    ("Brand Name" "Variety" "Yield" "Rank" "Yield1" "Maturity" "Ht Lodg.2" "100 Seed" "Quality3")
+    ("" "" "bu/acre" "" "bu/acre" "date" "in rating" "gm" "rating")
+    ("Maturity Group V" "" "" "" "" "" "" "" "")
+    ("Dyna-Gro" "39RY57" "74.5" "4" "66.0" "09/26" "34 4.0" "16.0" "1.5")
+    <var>... more data ...</var>
+    ("Armor" "55-R68" "." "34" "51.7" "09/29" "34 4.7" "14.7" "1.7")
+    )))))
+;; display the table data in a new window
+(request :content (display-table :table table93))
+;; the window opens
+(tell :content (report :content (opened :what pdfextractor-win-1 :who sys)))
+;; user manually selects another (tall, skinny) region, and says "hey, there should be a column boundary here!"
+(tell :content (report :content (selected :what
+  (rectangle :id region94
+    :page (page :id page20 :document document1 :index 18)
+    :x 424.0 :y 103.0 :w 2.0 :h 596.0)
+  )))
+;; split that column
+(request :content (edit-table :table table93 :edit (split-column :at-x 424.0)))
+;; we get the updated table data (also displayed in the table window)
+(reply :content (report :content (answer :table
+  (table :id table93 :data (
+    ("" "" "2-Year" "" "" "" "2017 Da" "ta" "" "")
+    ("Company or" "" "Average" "" "" "" "Plant" "" "Wt of" "Seed")
+    ("Brand Name" "Variety" "Yield" "Rank" "Yield1" "Maturity" "Ht" "Lodg.2" "100 Seed" "Quality3")
+    ("" "" "bu/acre" "" "bu/acre" "date" "in" "rating" "gm" "rating")
+    ("Maturity Group V" "" "" "" "" "" "" "" "" "")
+    ("Dyna-Gro" "39RY57" "74.5" "4" "66.0" "09/26" "34" "4.0" "16.0" "1.5")
+    <var>... more data ...</var>
+    ("Armor" "55-R68" "." "34" "51.7" "09/29" "34" "4.7" "14.7" "1.7")
+    )))))
+;; user selects a row of the table (in the table window) and says "merge this row with the next one"
+(tell :content (report :content (selected :what (row :table table93 :index 1))))
+;; we merge those two rows
+(request :content (edit-table :table table93 :edit (merge-rows :first 1 :last 2)))
+;; more updated data
+(reply :content (report :content (answer :table
+  (table :id table93 :data (
+    ("" "" "2-Year" "" "" "" "2017 Da" "ta" "" "")
+    ("Company or
+Brand Name" "
+Variety" "Average
+Yield" "
+Rank" "
+Yield1" "
+Maturity" "Plant
+Ht" "
+Lodg.2" "Wt of
+100 Seed" "Seed
+Quality3")
+    ("" "" "bu/acre" "" "bu/acre" "date" "in" "rating" "gm" "rating")
+    ("Maturity Group V" "" "" "" "" "" "" "" "" "")
+    ("Dyna-Gro" "39RY57" "74.5" "4" "66.0" "09/26" "34" "4.0" "16.0" "1.5")
+    <var>... more data ...</var>
+    ("Armor" "55-R68" "." "34" "51.7" "09/29" "34" "4.7" "14.7" "1.7")
+    )))))
+;; user scrolls to the next page
+(tell :content (report :content (displayed
+  :what (page :id page21 :document document1 :index 19)
+  :where pdfextractor-win-0
+  )))
+;; user manually selects the table this time, avoiding the headings
+(tell :content (report :content (selected :what
+  (rectangle :id region95
+    :page (page :id page21 :document document1 :index 19)
+    :x 68.0 :y 148.0 :w 468.0 :h 606.0)
+  )))
+;; we parse it
+(request :content (parse-table :region region95))
+;; get the table data back
+(reply :content (report :content (answer :table
+  (table :id table96 :data (
+    ("Terral Seed 56A58TM" "" "." "36" "50.6" "09/29" "32" "4.0" "14.9" "2.0")
+    <var>... more data ...</var>
+    ("Std Err. of Entry Mean" "" "2.5" "" "2.6" "01" "1" "0.3" "0.8" "0.03")
+    )))))
+;; and display it
+(request :content (display-table :table table96))
+;; it opens a 3rd window
+(tell :content (report :content (opened :what pdfextractor-win-2 :who sys)))
+;; there's a blank column for some reason (FIXME?), so we remove it
+(request :content (edit-table :table table96 :edit (delete-columns :first 1 :last 1)))
+;; the first column needs splitting, and the user selects a boundary
+(tell :content (report :content (selected :what
+  (rectangle :id region97
+    :page (page :id page21 :document document1 :index 19)
+    :x 146.0 :y 132.0 :w 2.0 :h 633.0)
+  )))
+;; and we split it
+(request :content (edit-table :table table96 :edit (split-column :at-x 146.0)))
+;; and get the table data back
+(reply :content (report :content (answer :table
+  (table :id table96 :data (
+    ("Terral Seed" "56A58TM" "." "36" "50.6" "09/29" "32" "4.0" "14.9" "2.0")
+    <var>... more data ...</var>
+    ("Std Err. of Entry Me" "an" "2.5" "" "2.6" "01" "1" "0.3" "0.8" "0.03")
+    )))))
+;; now the two tables have the same columns, so we merge the second into the first
+(request :content (edit-table :table table93 :edit (merge-tables :others (table96))))
+;; and get the table data back
+(reply :content (report :content (answer :table
+  (table :id table93 :data (
+    ;; here are the rows from the first table
+    ("" "" "2-Year" "" "" "" "2017 Da" "ta" "" "")
+    ("Company or
+Brand Name" "
+Variety" "Average
+Yield" "
+Rank" "
+Yield1" "
+Maturity" "Plant
+Ht" "
+Lodg.2" "Wt of
+100 Seed" "Seed
+Quality3")
+    ("" "" "bu/acre" "" "bu/acre" "date" "in" "rating" "gm" "rating")
+    ("Maturity Group V" "" "" "" "" "" "" "" "" "")
+    ("Dyna-Gro" "39RY57" "74.5" "4" "66.0" "09/26" "34" "4.0" "16.0" "1.5")
+    <var>... more data ...</var>
+    ("Armor" "55-R68" "." "34" "51.7" "09/29" "34" "4.7" "14.7" "1.7")
+    ;; and now here are the rows from the second table that we just put into the first table
+    ("Terral Seed" "56A58TM" "." "36" "50.6" "09/29" "32" "4.0" "14.9" "2.0")
+    <var>... more data ...</var>
+    ("Std Err. of Entry Me" "an" "2.5" "" "2.6" "01" "1" "0.3" "0.8" "0.03")
+    )))))
+;; we can close the second table window now
+(request :content (close :what pdfextractor-win-2))
+;; it closes
+(tell :content (report :content (closed :what pdfextractor-win-2 :who sys)))
+;; user closes the first table window
+(tell :content (report :content (closed :what pdfextractor-win-1 :who usr)))
+;; user closes the document window
+(tell :content (report :content (closed :what pdfextractor-win-0 :who usr)))
+</pre></code>
+
+</body>
+</html>

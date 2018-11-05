@@ -1,0 +1,159 @@
+VariableFinder
+
+VariableFinder is a TRIPS module that finds world modeling variables or the
+codes used to fill them given a sequence of words describing them.
+
+Usage
+
+VariableFinder supports two kinds of request: find-code and find-var. Both take
+the same set of arguments; the difference is that find-code matches the phrase
+against definitions of codes (variable values), and find-var matches it against
+definitions of variables. The arguments are:
+
+  :phrase
+    a list of word symbols to match (required)
+
+  :top-n
+    the number of matches to return (default 1)
+
+  :l-thresh
+    the Levenshtein score threshold for returned matches (default 0.95)
+
+The reply to these requests is an ANSWER with a list of match structures:
+
+  (reply :content (ANSWER (match ...) [ (match ...) ... ]))
+
+Each match structure has these arguments:
+
+  :variable
+    a list of pairs of symbols, (standard var-code), where var-code is a code
+    for the variable, and standard is the standard we got that code from (one
+    of DSSAT, ICASA, TRIPS, FAO, TOPOFLOW, UN, or WDI). There is one special
+    case where var-code is a list, because TRIPS has two codes for location
+    variables: (TRIPS (LOCATION LOC_AFFECTED))
+
+  :code
+    (only present in replies to find-code) a list of pairs of symbols, similar
+    to :variable, except that the code in each pair is for the value of the
+    variable instead of the variable itself, and there are more standards
+    represented, namely APSIM, and each of the country code fields (see
+    resources/codes/country-codes.csv).
+
+  :score
+    the score for the match
+
+Two different methods are used to find and score matches: Levenshtein edit
+distance, and word vector similarity. The same match can be reported twice if
+it was found with both methods. The :l-thresh argument applies only to
+Levenshtein scores, so lower word vector scores may still come through. Matches
+are reported in order of descending score.
+
+Examples
+
+The replies listed here for these requests might not be up to date, but should
+give you a general idea of what is possible.
+
+  (REQUEST :CONTENT (find-code :phrase (wheat)))
+  (reply :content (ANSWER
+    (match
+      :variable ((ICASA CRID))
+      :code ((DSSAT WH) (APSIM Wheat) (TRIPS WHT))
+      :score 1.0
+      )))
+
+  (REQUEST :CONTENT (find-code :phrase (wheat) :top-n 3))
+  (reply :content (ANSWER
+    (match
+      :code ((DSSAT WH) (ICASA WHD) (APSIM Wheat))
+      :variable ((ICASA CRID))
+      :score 1.0
+      )
+    (match
+      :code ((DSSAT WH) (APSIM Wheat) (TRIPS WHT))
+      :variable ((ICASA CRID))
+      :score 1.0
+      )
+    (match
+      :code ((DSSAT WH) (APSIM Wheat) (TRIPS WHT))
+      :variable ((ICASA CRID))
+      :score 1.0
+      )
+    ))
+
+  (REQUEST :CONTENT (find-code :phrase (drained awful) :top-n 1))
+  (reply :content (ANSWER
+    (match
+      :variable ((ICASA CRID))
+      :code ((ICASA BGR))
+      :score 0.283339563735
+      )))
+
+  (REQUEST :CONTENT (find-var :phrase (high of weather)))
+  (reply :content (ANSWER
+    (match
+      :variable ((DSSAT TMAX) (ICASA tmax) (TRIPS TMAX))
+      :score 0.774640750747
+      )))
+
+  (request :content (find-code :phrase (sudan)))
+  (reply :content (ANSWER
+    (match
+      :code (
+        (name Sudan)
+	(region Africa)
+	(region-code 2.0)
+	(sub-region-code 15.0)
+	(iso_3166-2 ISO3166-2SD)
+	(sub-region NorthernAfrica)
+	(alpha-2 SD)
+	(alpha-3 SDN)
+	)
+      :variable ((TRIPS (LOCATION LOC_AFFECTED)))
+      :score 1.0
+      )))
+
+TODO find a useful example of :l-thresh
+
+Resources
+
+VariableFinder includes/downloads several data files in the resources/
+directory, and downloads one more (large) resource directly to its install
+location.
+
+  counter-fitted-vectors-gensim.txt
+    This large file is downloaded directly to
+    $TRIPS_BASE/etc/VariableFinder/resources/, and contains model information
+    for word vector similarity scoring.
+
+  stopwords.txt
+    a list of words to be removed from the :phrase before doing word vector
+    similarity scoring.
+
+  dsatVars.xlsx
+    an Excel spreadsheet containing corresponding names of variables from
+    ICASA, TRIPS, and DSSAT, as well as short definitions. Also contains some
+    extra information that VariableFinder doesn't actually use.
+
+  *_ontology.yml
+    YAML files representing "ontologies" from EIDOS, which we use for
+    variable names from FAO, TOPOFLOW, UN, and WDI. Downloaded from github:
+    https://github.com/clulab/eidos/tree/master/src/main/resources/org/clulab/wm/eidos/ontologies
+
+  codes/crop_codes.csv
+    a comma-seprated values table of APSIM, DSSAT, ICASA, and TRIPS codes for
+    values of the crop ID variable (ICASA CRID), as well as the common English
+    names for those crops. Also includes Latin names, but VariableFinder
+    doesn't use them.
+
+  codes/management_codes.csv
+    a csv table of (ICASA?) management codes. Not actually used yet.
+
+  codes/metadata_codes.csv
+    a csv table of (ICASA?) metadata codes. Not actually used yet.
+
+  codes/other_codes.csv
+    a csv table of (ICASA?) other codes. Not actually used yet.
+
+  codes/country_codes.csv
+    a csv table of ISO 3166 country codes and country names.
+

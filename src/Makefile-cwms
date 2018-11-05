@@ -1,0 +1,82 @@
+# Makefile-cwms
+#
+# Time-stamp: <Mon Jun  5 14:16:41 CDT 2017 lgalescu>
+#
+# Author: Lucian Galescu <lgalescu@ihmc.us>, 14 Oct 2015
+#
+
+LIBS = \
+	KQML \
+	TripsModule \
+	trlib \
+	util \
+	util/cwc \
+	defcomponent \
+	AKRL \
+	WordNetSQL
+
+LISP_MODULES = \
+	util \
+	Comm \
+	Logging \
+	OntologyManager \
+	LexiconManager \
+	Parser \
+	Wordfinder \
+	SimpleKB \
+	NewIM \
+	BasicDialogueAgent \
+	AlarmClock \
+	Dummy \
+	CWMSAgent
+
+LISP_PROGRAMS = \
+	Systems/cwms
+
+SPEECH_LIBS = 
+#        portaudio
+
+#include config/speech-out/defs.mk
+
+SPEECH_PROGRAMS = \
+#	SpeechOutNot 
+#	Sphinx3 \
+#	SpeechIn3 \
+#	SpeechLM \
+#	SpeechController \
+#	SpeechOut \
+#	$(SPEECH_OUT_COMPONENT) \
+#	SpeechOutServer
+
+JAVA_PROGRAMS = \
+	Facilitator \
+	SpeechOutNot \
+	KeyboardManager \
+	CollaborativeStateManager \
+	ChartDisplay \
+	GraphDisplay \
+	PDFExtractor \
+	DrumGUI
+
+# DrumGUI and Data are for cwmsreader
+DATA = \
+	Data
+
+OTHER_PROGRAMS = \
+	Graphviz \
+	HeadlessWeb \
+	TextPP \
+	TextTagger \
+	ImageDisplay \
+	Spaceman \
+	CropModeller \
+	VariableFinder \
+	TWIST \
+	ABN2 \
+	UnitConverter \
+	FoodSec \
+	WelfareBenes \
+	EKB \
+	Tools
+
+include Makefile-common

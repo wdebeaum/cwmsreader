@@ -1,0 +1,6 @@
+gensim
+pandas
+python-levenshtein
+xlrd
+nltk
+PyYAML
