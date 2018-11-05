@@ -93,7 +93,7 @@ The `--with-lisp` option lets you tell `configure` the command to use to run lis
 You can run the system using the following command:
 
 ```bash
-$TRIPS_BASE/bin/trips-cwwm -reader [ -data /path/to/data/folder ]
+$TRIPS_BASE/bin/trips-cwms -reader [ -data /path/to/data/folder ]
 ```
 
 This will show up a GUI where you can navigate to the folder containing your data (if you use the `-data` option, you'll be taken there automatically), select one or more files, and run the system on them. The system creates a session folder where it keeps all the logs, as well as the results of the extraction process, which end up in EKB files (extension .ekb). EKB files use an XML format for representing the text inputs, annotated at paragraph and sentence level, and the extractions. 
@@ -103,7 +103,7 @@ Warning: The system doesn't do any character-level transformation of the input t
 It is possible to run the system without any user interface. For example:
 
 ```bash
-$TRIPS_BASE/bin/trips-cwwm -reader -nouser
+$TRIPS_BASE/bin/trips-cwms -reader -nouser
 ```
 
 This is particularly useful if you intend to run the system in batch mode. To be able to tell it to process data, you'd have to connect to it another TRIPS module which can send requests. You can create one yourself (see below on how). The system provides some simple clients that you can run from the terminal. For example:
