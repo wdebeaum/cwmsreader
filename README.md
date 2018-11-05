@@ -63,7 +63,7 @@ and unpack them in the same directory, `/usr/local/share/wordnet/` (create the d
 
 Also download this file:
 
-    https://geonames.usgs.gov/docs/stategaz/NationalFile_20181001.zip
+ - [https://geonames.usgs.gov/docs/stategaz/NationalFile_20181001.zip](https://geonames.usgs.gov/docs/stategaz/NationalFile_20181001.zip)
 
 And move/rename it to this (don't unpack it):
 
