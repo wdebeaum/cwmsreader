@@ -12,6 +12,7 @@ config.log
 config.status
 TRIPS-stamp
 /src/*/TRIPS
+/src/util/cwc/TRIPS
 MANIFEST.MF
 trips-*.core
 /src/Makefile
@@ -30,6 +31,7 @@ trips-*.core
 /src/TextTagger/personal-names.tsv
 /src/TextTagger/get-ssh-tunnel
 /src/TextTagger/wn-multiwords.tsv
+/src/TextTagger/countries.tsv
 /src/TextTagger/*-terms.tsv
 /src/TextTagger/downloads/
 /src/TextTagger/drum-dsl/
@@ -38,9 +40,11 @@ trips-*.core
 /src/TextTagger/Perl/TextTagger/Config.pm
 /src/TextTagger/StanfordCoreNLP/CoreNLPFilter
 /src/TextTagger/StanfordCoreNLP/TRIPS
+/src/TextTagger/terms2/terms2
 # WordNetSQL
 /src/WordNetSQL/glosstags.psv
 /src/WordNetSQL/wn.db
+/src/WordNetSQL/wn.db-no-really
 /src/WordNetSQL/gsts-warnings.txt
 /src/WordNetSQL/eswn-relation.psv
 /src/WordNetSQL/eswn-synset.psv
@@ -55,6 +59,7 @@ trips-*.core
 /src/Graphviz/Graphviz
 /src/Graphviz/Configuration.pm
 /src/KQML/extract-messages
+/src/KQML/find-messages
 /src/TextPP/TextPP
 /src/Tools/trips_cat
 /src/Tools/trips_client
@@ -76,6 +81,7 @@ trips-*.core
 /src/WebParser/web-parser-xml.image
 # system run scripts
 /src/Systems/cwms/trips-cwms
+/src/Systems/cwms/trips-cwms-lisp
 # junk certain editors create
 .*.swp
 *~
