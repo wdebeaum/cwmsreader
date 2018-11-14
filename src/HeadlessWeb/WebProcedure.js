@@ -5,8 +5,8 @@ const KQML = require('KQML/kqml.js');
 // we don't actually use sax directly, but jsdom does, and we need to fix its
 // concept of entities so it doesn't break every website ever (e.g. &nbsp;
 // won't parse *headdesk*)
-// const sax = require('sax');
-// sax.XML_ENTITIES = sax.ENTITIES;
+const sax = require('sax');
+sax.XML_ENTITIES = sax.ENTITIES;
 
 // get jquery source code so we can inject it in webpages with jsdom
 const jquery = fs.readFileSync(process.env.TRIPS_BASE + '/etc/node_modules/jquery/dist/jquery.min.js', 'utf-8');

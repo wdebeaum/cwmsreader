@@ -1,7 +1,7 @@
 /*
  * TermExtraction.java
  *
- * $Id: TermExtraction.java,v 1.57 2018/10/26 01:33:43 lgalescu Exp $
+ * $Id: TermExtraction.java,v 1.59 2018/11/08 21:25:42 lgalescu Exp $
  *
  * Author: Lucian Galescu <lgalescu@ihmc.us>, 8 Jan 2015
  */
@@ -28,7 +28,6 @@ public class TermExtraction extends Extraction {
     /**
      * Term attributes
      * 
-     * @author lgalescu
      */
     protected enum Attribute {
         // :NAME symbol --> name of term (in W:: package)
@@ -98,7 +97,6 @@ public class TermExtraction extends Extraction {
     /**
      * Term poly-attributes (each attribute may appear multiple times)
      * 
-     * @author lgalescu
      */
     protected enum PolyAttribute {
         // :DEGREE hyper-/hypo-/under-/over-
@@ -1003,9 +1001,11 @@ public class TermExtraction extends Extraction {
         
         List<String> attrs = new ArrayList<String>();
         KQMLObject modType = attributes.get(Attribute.TIMEMOD);
-        String mod = ontType(modType);
-        if (!mod.isEmpty()) {
-            attrs.add(xml_attribute("mod", mod));
+        if (modType != null) {
+            String mod = ontType(modType);
+            if (!mod.isEmpty()) {
+                attrs.add(xml_attribute("mod", mod));
+            }
         }
         
         if (isOntVar(time.toString())) {
@@ -1029,11 +1029,13 @@ public class TermExtraction extends Extraction {
 
         List<String> attrs = new ArrayList<String>();
         KQMLObject modType = attributes.get(Attribute.LOCMOD);
-        String mod = ontType(modType);
-        if (!mod.isEmpty()) {
-            attrs.add(xml_attribute("mod", mod));
+        if (modType != null) {
+            String mod = ontType(modType);
+            if (!mod.isEmpty()) {
+                attrs.add(xml_attribute("mod", mod));
+            }
         }
-
+        
         String result = "";
         if (isOntVar(loc.toString())) {
             String var = loc.toString();
