@@ -3,14 +3,14 @@
 ;;;; 
 
 (define-words :pos W::V 
-  :templ agent-affected-xp-templ
+  :TEMPL AGENT-AFFECTED-XP-NP-TEMPL
  :words (
 (w::thin
  (senses
   ((meta-data :origin cardiac :entry-date 20090417 :change-date nil :comments nil)
    (LF-PARENT ONT::thin)
    (example "thin the sauce")
-   (templ agent-affected-xp-templ)
+   (TEMPL AGENT-AFFECTED-XP-NP-TEMPL)
    (SEM (F::Cause F::Agentive) (F::Aspect F::bounded) (F::Time-span F::extended) (f::scale ont::texture-thinness-scale))
     )
   ((meta-data :origin cardiac :entry-date 20090417 :change-date nil :comments nil)
@@ -19,7 +19,13 @@
    (SEM (F::Aspect F::bounded) (F::Time-span F::extended) (f::scale ont::texture-thinness-scale))
    (templ affected-unaccusative-templ)
    )
-  )
+  ((LF-PARENT ONT::flatten)
+   (meta-data :origin cause-result-relations :entry-date 20180907 :change-date nil :comments nil)
+   (TEMPL AGENT-AFFECTED-XP-NP-TEMPL)
+   (example "She thinned the metal with a hammer.")
+   (PREFERENCE 0.98)
+   )
+ )
  )
 ))
 

@@ -74,8 +74,9 @@
    ((ONT::SPEECHACT ?V7187 ONT::SA_YN-QUESTION :CONTENT ?!c)
     (ONT::F ?!c ONT::EVENT-OF-CHANGE ;ONT::EVENT-OF-ACTION  ; can you find a drug...
 	    :AGENT ?!V6 :force (? f ONT::ALLOWED ONT::PROHIBITED ONT::FUTURE ONT::FUTURENOT ONT::POSSIBLE ONT::FUTURE))
-    ((? z ONT::PRO ONT::PRO-SET) ?!V6 ONT::PERSON :proform (? xx w::ME w::I w::you w::we w::us))    
-      -can-indirect-proposal>
+    ((? z ONT::PRO ONT::PRO-SET) ?!V6 ONT::PERSON :proform (? xx w::ME w::I w::you w::we w::us))
+    (?s ?v ?t) ; filler to beat -request-to-identify3c>
+      -can-indirect-proposal> .99 ; lower score than the other more specific "can you..." rules, e.g., -can-indirect-request>
       (ONT::PROPOSE :who *USER* :to *ME*
 		   :what ?!c
 		   ;:as ONT::GOAL
@@ -113,6 +114,16 @@
     ;(?!spec ?!n ?!t :suchthat ?!m)
     )
 
+   ;; are there any inhibitors?
+   ((ONT::SPEECHACT ?v ONT::SA_YN-QUESTION :CONTENT ?!v1)
+    (ONT::F ?!v1 ONT::EXISTS :neutral ?!n) 
+    (?!spec ?!n ?!t) ;:suchthat ?!m)
+    ;(ONT::F ?!m ?!t2)
+    -yes-no-question-suchthat2>
+    (ONT::ASK-WHAT-IS :who *user* :to *ME* :what ?!n) ;:suchthat ?!m)
+    ;(?!spec ?!n ?!t :suchthat ?!m)
+    )
+   
    ;; Do you know any good books?
    ;; Do you know any drugs for BRAF?
    ((ONT::SPEECHACT ?v ONT::SA_YN-QUESTION :CONTENT ?!v1)
@@ -196,19 +207,73 @@
      ((ONT::SPEECHACT ?x ONT::SA_REQUEST :CONTENT ?!theme)
       (ONT::F ?!theme (? t3 ONT::NAMING ONT::LISTING ONT::TELL ONT::LOOK-UP) :NEUTRAL ?!n :force (? f ONT::TRUE ONT::ALLOWED ONT::FUTURE ONT::POSSIBLE)) 
       (?!spec ?!n ?!t :mods (?!m))
-      (ONT::F ?!m (? !t2 ONT::DOMAIN-PROPERTY ONT::MODIFIER)) ; e.g., *not* beautiful, or unknown adjectives 
+      (ONT::F ?!m (? !t2 ONT::DOMAIN-PROPERTY ONT::MODIFIER ONT::PREDICATE)) ; e.g., *not* beautiful or unknown adjectives or ASSOC-WITH (for pertainyms) etc , so that it picks the "that" clause instead of the adjective in, e.g., Look up the large dog that bit the cat 
       -request-to-identify>
       (ONT::ASK-WHAT-IS :who *user* :to *ME* :what ?!n :suchthat ?!m)
+      )
+
+     ;; e.g., Show/Look up the evidence/information that... (no :suchthat) (formal)
+    ;; e.g., Show/Look up the evidence/information.     
+     ;; e.g., Show/Look up the evidence/information we generated. (mod)     
+   ((ONT::SPEECHACT ?x ONT::SA_REQUEST :CONTENT ?!theme)
+    (ONT::F ?!theme (? t3 ONT::SHOW ONT::NAMING ONT::LISTING ONT::TELL ONT::LOOK-UP) :NEUTRAL ?!n :force (? f ONT::TRUE ONT::ALLOWED ONT::FUTURE ONT::POSSIBLE)) 
+    ;(?!spec ?!n (? t2 ONT::INFORMATION) :formal ?!X) ; e.g., evidence that, information, data 
+    (?!spec ?!n (? t2 ont::information-function-object ont::mental-construction))
+    -request-show-evidence-to-identify>
+    (ONT::ASK-WHAT-IS :who *user* :to *ME* :what ?!n) ;:suchthat ?!X)
+    )
+
+   ;; e.g., Give me the evidence/information/plan/definition that... (no :suchthat) (formal/mod/none)
+   ((ONT::SPEECHACT ?x ONT::SA_REQUEST :CONTENT ?!theme)
+    (ONT::F ?!theme (? t3 ONT::GIVING) :AFFECTED ?!n :force (? f ONT::TRUE ONT::ALLOWED ONT::FUTURE ONT::POSSIBLE)) 
+    ;(?!spec ?!n (? t2 ONT::INFORMATION) :formal ?!X) ; e.g., evidence that, information, data 
+    (?!spec ?!n (? t2 ont::information-function-object ont::mental-construction))
+    -request-give-evidence-to-identify>
+    (ONT::ASK-WHAT-IS :who *user* :to *ME* :what ?!n) ;:suchthat ?!X)
+    )
+
+     ;  Name/List/Tell me/Look up the expensive drugs (neutral) (no :suchthat)
+     ((ONT::SPEECHACT ?x ONT::SA_REQUEST :CONTENT ?!theme)
+      (ONT::F ?!theme (? t3 ONT::NAMING ONT::LISTING ONT::TELL ONT::LOOK-UP) :NEUTRAL ?!n :force (? f ONT::TRUE ONT::ALLOWED ONT::FUTURE ONT::POSSIBLE)) 
+      (?!spec ?!n ?!t :mods (?!m))
+      (ONT::F ?!m (? t2 ONT::DOMAIN-PROPERTY ONT::MODIFIER ONT::PREDICATE)) ; e.g., beautiful or unknown adjectives, without the "that" clause
+      -request-to-identify-adj> 0.98 ; prefer -request-to-identify> and -request-to-identify-b>
+      (ONT::ASK-WHAT-IS :who *user* :to *ME* :what ?!n) ;:suchthat ?!m)
+      )
+
+     ;  Name/List/Tell me about/Look up the drug (neutral) (no :suchthat)
+     ((ONT::SPEECHACT ?x ONT::SA_REQUEST :CONTENT ?!theme)
+      (ONT::F ?!theme (? t3 ONT::NAMING ONT::LISTING ONT::TELL ONT::LOOK-UP) :neutral ?!n :force (? f ONT::TRUE ONT::ALLOWED ONT::FUTURE ONT::POSSIBLE)) 
+      (?!spec ?!n ?!t)
+      -request-to-identify-simple> 
+      (ONT::ASK-WHAT-IS :who *user* :to *ME* :what ?!n) ;:suchthat ?!n)
+      )
+     
+     ;  Name/List/Tell me about/Look up the activation of the drug (formal) (no :suchthat)
+     ((ONT::SPEECHACT ?x ONT::SA_REQUEST :CONTENT ?!theme)
+      (ONT::F ?!theme (? t3 ONT::NAMING ONT::LISTING ONT::TELL ONT::LOOK-UP) :FORMAL ?!n :force (? f ONT::TRUE ONT::ALLOWED ONT::FUTURE ONT::POSSIBLE)) 
+      (?!spec ?!n ?!t)
+      -request-to-identify-simple2> 
+      (ONT::ASK-WHAT-IS :who *user* :to *ME* :what ?!n) ;:suchthat ?!n)
       )
 
      ;; e.g., Name/List/Tell me/Look up the drugs regulated by... (suchthat)
      ((ONT::SPEECHACT ?x ONT::SA_REQUEST :CONTENT ?!theme)
       (ONT::F ?!theme (? t3 ONT::NAMING ONT::LISTING ONT::TELL ONT::LOOK-UP) :NEUTRAL ?!n :force (? f ONT::TRUE ONT::ALLOWED ONT::FUTURE ONT::POSSIBLE)) 
       (?!spec ?!n ?!t :suchthat ?!m)
-      (ONT::F ?!m (? !t2 ONT::DOMAIN-PROPERTY ONT::MODIFIER)) ; e.g., *not* beautiful, or unknown adjectives 
+      (ONT::F ?!m (? !t2 ONT::DOMAIN-PROPERTY ONT::MODIFIER ONT::PREDICATE)) ; e.g., *not* beautiful or unknown adjectives
       -request-to-identify-b>
       (ONT::ASK-WHAT-IS :who *user* :to *ME* :what ?!n :suchthat ?!m)
       )
+
+   ;;  Tell me about <event>  ==>  what is ?   
+   ((ONT::SPEECHACT ?x ONT::SA_REQUEST :CONTENT ?!theme)
+    (ONT::F ?!theme (? t3 ONT::TELL) :MOD ?!n :force (? f ONT::TRUE ONT::ALLOWED ONT::FUTURE ONT::POSSIBLE)) 
+    (?!spec ?!n (? t2 ONT::ASSOCIATED-INFORMATION) :ground ?!X) ; e.g., about the evidence/ the explosion/ the gene, ... 
+    -request-tell-about>
+    (ONT::ASK-WHAT-IS :who *user* :to *ME* :what ?!X)
+    )
+   
 
      ;; e.g., Tell me/Let me know if there is/are proteins that activate...
      ;; e.g., I want to know if there is an orange block (SA_TELL)
@@ -218,14 +283,15 @@
       (ONT::F ?!c ONT::EXISTS :NEUTRAL ?!n2)
       ;(ONT::PRO ?!p ONT::EXPLETIVE :PROFORM w::there) ; this is not put through the match
       (?!spec2 ?!n2 ?!t2 :MODS (?!m))
-      (ONT::F ?!m (? !t4 ONT::DOMAIN-PROPERTY ONT::MODIFIER))
+      (ONT::F ?!m (? !t4 ONT::DOMAIN-PROPERTY ONT::MODIFIER ONT::PREDICATE))
       -request-to-identify3>
       (ONT::ASK-WHAT-IS :who *user* :to *ME* :what ?!n2 :suchthat ?!m)
       )
 
-     ;; e.g., Are any of those...
+     ;; e.g., Are any of those.../Do any... 
      ((ONT::SPEECHACT ?x (? sa ONT::SA_YN-QUESTION) :CONTENT ?!theme)
-      (?reln ?!theme ?type) ; beats -ynq1>
+      ;(?reln ?!theme ?type) ; beats -ynq1>
+      (?reln ?!theme ?type :NOROLE -) ; beats -ynq1> ; excludes "are there any..."
       (?reln1 ?!t ONT::REFERENTIAL-SEM :QUAN ONT::ANY)
       -request-to-identify3c>
       (ONT::ASK-WHAT-IS :who *user* :to *ME* :what ?!t :suchthat ?!theme)
@@ -242,13 +308,30 @@
     -request-to-identify3b>
     (ONT::ASK-IF :who *user* :to *ME* :what ?!c)
     )
-     
+
+   ;; e.g., I want to learn/find out how...
+   ((ONT::SPEECHACT ?x (? sa ONT::SA_REQUEST ONT::SA_TELL) :CONTENT ?!theme)
+    (ONT::F ?!theme (? t3 ONT::WANT ) :FORMAL ?!n :force (? f ONT::TRUE ONT::ALLOWED ONT::FUTURE ONT::POSSIBLE))
+    (ONT::F ?!n (? t4 ONT::COGITATION) :FORMAL ?!wh-var)
+    ((? spec ONT::WH-TERM ONT::WH-TERM-SET) ?!wh-var ONT::METHOD :suchthat ?!st)
+    -request-to-identify-which-b> 
+    (ONT::PROPOSE :who *user* :to *ME* :what ?!n :as ONT::GOAL)
+    )   
+   
+   ;; e.g., Tell me/Let me know which/what blocks are red.
+   ((ONT::SPEECHACT ?x (? sa ONT::SA_REQUEST ONT::SA_TELL) :CONTENT ?!theme)
+    (ONT::F ?!theme (? t3 ONT::TELL ONT::ALLOW ONT::WANT ONT::LOOK-UP) :FORMAL ?!n :force (? f ONT::TRUE ONT::ALLOWED ONT::FUTURE ONT::POSSIBLE))
+    ((? spec ONT::WH-TERM ONT::WH-TERM-SET) ?!wh-var ?!wh-type :suchthat ?!st)
+    -request-to-identify-which>
+    (ONT::ASK-WHAT-IS :who *user* :to *ME* :what ?!wh-var :suchthat ?!st)
+    )   
+   
      ;; I want to know (about)...
      ((ONT::SPEECHACT ?x ONT::SA_TELL :CONTENT ?!theme )
       (ONT::F ?!theme (? t3 ONT::WANT) :FORMAL ?!n :force (? f ONT::TRUE ONT::ALLOWED ONT::FUTURE ONT::POSSIBLE)) 
       (ONT::F ?!n ONT::KNOW :NEUTRAL ?!n2) ; note n3, not n
       (?!spec2 ?!n2 ?!t2 :MODS (?!m))
-      (ONT::F ?!m (? !t4 ONT::DOMAIN-PROPERTY ONT::MODIFIER))
+      (ONT::F ?!m (? !t4 ONT::DOMAIN-PROPERTY ONT::MODIFIER ONT::PREDICATE))
       -request-to-identify4>
       (ONT::ASK-WHAT-IS :who *user* :to *ME* :what ?!n2 :suchthat ?!m)
       )
@@ -258,7 +341,7 @@
       (ONT::F ?!theme (? t3 ONT::NAMING ONT::LISTING ONT::TELL ONT::LOOK-UP) :NEUTRAL ?!n 
 	      :AGENT ?!V6 :force (? f ONT::ALLOWED ONT::PROHIBITED ONT::FUTURE ONT::FUTURENOT ONT::POSSIBLE ONT::FUTURE)) 
      (?!spec ?!n ?!t :mods (?!m))
-     (ONT::F ?!m (? !t2 ONT::DOMAIN-PROPERTY ONT::MODIFIER))
+     (ONT::F ?!m (? !t2 ONT::DOMAIN-PROPERTY ONT::MODIFIER ONT::PREDICATE))
      ((? z ONT::PRO) ?!V6 ONT::PERSON :proform (? xx w::you))    
      -can-indirect-yes-no>
      (ONT::ASK-WHAT-IS :who *user* :to *ME* :what ?!n :suchthat ?!m)
@@ -279,12 +362,22 @@
       (ONT::F ?!theme (? t3 ONT::NAMING ONT::LISTING ONT::TELL ONT::LOOK-UP) :NEUTRAL ?!n 
 	      :AGENT ?!V6 :force (? f ONT::ALLOWED ONT::PROHIBITED ONT::FUTURE ONT::FUTURENOT ONT::POSSIBLE ONT::FUTURE)) 
      (?!spec ?!n ?!t :suchthat ?!m)
-     (ONT::F ?!m (? !t2 ONT::DOMAIN-PROPERTY ONT::MODIFIER))
+     (ONT::F ?!m (? !t2 ONT::DOMAIN-PROPERTY ONT::MODIFIER ONT::PREDICATE))
      ((? z ONT::PRO) ?!V6 ONT::PERSON :proform (? xx w::you))    
      -can-indirect-request-b>
      (ONT::ASK-WHAT-IS :who *user* :to *ME* :what ?!n :suchthat ?!m)
       )
-     
+
+     ;; can you name the drug (indirect requests) (no :suchthat)
+     ((ONT::SPEECHACT ?V7187 ONT::SA_YN-QUESTION :CONTENT ?!c)
+      (ONT::F ?!theme (? t3 ONT::NAMING ONT::LISTING ONT::TELL ONT::LOOK-UP) :NEUTRAL ?!n 
+	      :AGENT ?!V6 :force (? f ONT::ALLOWED ONT::PROHIBITED ONT::FUTURE ONT::FUTURENOT ONT::POSSIBLE ONT::FUTURE)) 
+     (?!spec ?!n ?!t)
+     ((? z ONT::PRO) ?!V6 ONT::PERSON :proform (? xx w::you))    
+     -can-indirect-request-b2>
+     (ONT::ASK-WHAT-IS :who *user* :to *ME* :what ?!n) ;:suchthat ?!m)
+      )
+
      
      ;; e.g., buy me a computer
      ((ONT::SPEECHACT ?x ONT::SA_REQUEST :CONTENT ?!theme)
@@ -385,6 +478,7 @@
        )
       |#
 
+   #|
       ;;  What next?
       ((ONT::SPEECHACT ?!a ONT::SA_WH-QUESTION :FOCUS ?!ff :CONTENT ?!rr :MOD ?!m1)
        (ONT::WH-TERM ?!ff ?foc-type)
@@ -392,14 +486,26 @@
        -Q-next>
        (ONT::ASK-WHAT-IS :who *USER* :to *ME* :what ?!ff)
        )
-      
-      ;; e.g., What budget are we using?
-
+   |#  
+   
+   ;; e.g., What budget are we using?
    ((ONT::SPEECHACT ?!a ONT::SA_WH-QUESTION :FOCUS ?!ff :CONTENT ?!rr)
-       ((? spec ONT::WH-TERM ONT::WH-TERM-SET) ?!ff ?!type)
+       ;((? spec ONT::WH-TERM ONT::WH-TERM-SET) ?!ff ?!type)
        -standardQ>
        (ONT::ASK-WHAT-IS :who *USER* :to *ME* :what ?!ff :suchthat ?!rr)
-	)
+       )
+
+      ; what next?
+      ; to get around that using standardQ would lose the "next" that is on the speechact
+      ((ONT::SPEECHACT ?!V1 ?act :content ?!c :mods (?!seq))
+       (?spec ?!c  (:* ONT::REFERENTIAL-SEM W::WHAT) :PROFORM W::WHAT)
+       (ONT::F ?!seq (:* ONT::SEQUENCE-POSITION w::next))
+      -what-next>
+       (ONT::ASK-WHAT-IS :who *USER* :to *ME* :what ?!c :suchthat ?!V1 )
+       (ONT::F ?!V1 (:* ONT::HAVE-PROPERTY w::BE) :NEUTRAL ?!c :FORMAL ?!seq)
+       (ONT::F ?!seq (:* ONT::SEQUENCE-val-next w::next))
+      )
+   
       
    ;; conditional questions: "What happens to the price of wheat in South Sudan if we cut the amount of fertilizer?"
 
@@ -444,8 +550,16 @@
    ;; The dog?
      ((ONT::SPEECHACT ?!a ONT::SA_YN-QUESTION :CONTENT ?!rr)
       (?sp ?!rr ?type)
-      -ynq1> 
+      -ynq1> 0.98 ; prefer -ynq1b>
       (ONT::ASK-IF :who *USER* :to *ME* :what ?!rr)
+      )
+
+     ;; Any dog? (no :suchthat)
+     ;; Any inhibitors? (with :suchthat)
+     ((ONT::SPEECHACT ?!a ONT::SA_YN-QUESTION :CONTENT ?!rr)
+      (?sp ?!rr ?type :QUAN ONT::ANY :SUCHTHAT ?st) ; :suchthat optional
+      -ynq1b> 
+      (ONT::ASK-WHAT-IS :who *USER* :to *ME* :what ?!rr :suchthat ?st)
       )
 
      ; Did you eat anything?
@@ -575,7 +689,7 @@
    ((ONT::SPEECHACT ?a ONT::SA_PRED-FRAGMENT :CONTENT ?!vv)
     (ONT::F ?!vv (? pp ONT::PROPERTY-VAL ONT::PREDICATE ONT::POSITION-RELN))
     -frag-property> 0.98
-    (ONT::ANSWER :who *USER* :to *ME* :content ?!vv)
+    (ONT::ANSWER :who *USER* :to *ME* :what ?!vv)
     )
    #||
     ;; not needed as negation is handled in FORCE computation
@@ -708,13 +822,14 @@
        ((? act ONT::SA_ACK ONT::SA_THANK ONT::SA_WELCOME)  :who *USER* :to *ME*)
       )
 
+      #|
    ;; extract discourse markers out as their own act if not otherwise handled
       ;; Then take out the garbage.
      ((ONT::SPEECHACT ?!V1 ?act :mods (?!seq))
       (ONT::F ?!seq (:* ONT::SEQUENCE-POSITION ?!indicator))
       -discourse-sequence-marker>
       (ONT::manage-conversation :signal ?!indicator))
-   
+      |#
 
    ;; this rule should only work for questions about how to do this, or what objects we should use for a task, etc.
    ((ONT::SPEECHACT ?!V10966 ONT::SA_REQUEST :CONTENT ?!V10811)
@@ -834,10 +949,11 @@
 		   ;; :what ?PROP :CONTEXT ?context)
 	    ))
 
-	   ((ONT::SPEECHACT ?!vv ONT::SA_REJECT)
+	  ; ?c is optional, e.g., "not the cat"
+	   ((ONT::SPEECHACT ?!vv ONT::SA_REJECT :CONTENT ?c) 
 	    ;;(CALL (ACTIVE-PROPOSAL-ON-STACK ?prop ?context))
 	    -gen-proposal-rule4>
-	    (ONT::REJECT :who *USER* :to *ME*)
+	    (ONT::REJECT :who *USER* :to *ME* :what ?c)
 	    )
 
 	   ;; that's right/that could be right
@@ -862,14 +978,14 @@
 	  ((ONT::SPEECHACT ?a ONT::SA_TELL :content ?!cc)
 	   (ONT::F ?!cc ONT::HAVE-PROPERTY :FORMAL ?!dd :neutral ?!x :force (? force ONT::TRUE ONT::ALLOWED ONT::REQUIRED))
 	   (ONT::PRO ?!x (:* ONT::REFERENTIAL-SEM W::THAT))
-	   (ONT::F ?!dd (:* ONT::GOOD (? xx W::GOOD W::OKAY)))
+	   (ONT::F ?!dd (:* ONT::GOOD)) ;(? xx W::GOOD W::OKAY))) ; also fine/great/excellent
 	   ;;(CALL (ACTIVE-PROPOSAL-ON-STACK ?prop ?context))   deleted for demo - readd
 	   -confirm3>
-	   (ONT::ACCEPT :who *USER* :to *ME* :what ?x) )
+	   (ONT::ACCEPT :who *USER* :to *ME* :what ?!x) )
 
 	  ;;  OKAY, good
 	  ((ONT::SPEECHACT ?!a ONT::SA_EVALUATE :CONTENT ?!vv)
-	    (ONT::F ?!vv (:* ONT::GOOD (? xx W::GOOD W::OKAY)))
+	    (ONT::F ?!vv (:* ONT::GOOD)) ;(? xx W::GOOD W::OKAY))) ; also fine/great/excellent
 	   -confirm-okay>
 	   (ONT::ACCEPT :who *USER* :to *ME* :what ?!vv)
 	   )

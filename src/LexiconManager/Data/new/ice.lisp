@@ -49,16 +49,16 @@
 ))
 
 (define-words :pos W::V 
-  :templ agent-affected-xp-templ
+  :TEMPL AGENT-AFFECTED-XP-NP-TEMPL
  :words (
 (w::ice
  (senses
   ((meta-data :origin foodkb :entry-date 20090129 :change-date nil :comments nil)
-   (LF-PARENT ONT::cooking)
+   (LF-PARENT ONT::coat-food)
    (syntax (w::resultative +))
    (example "he iced the cake")
-   (SEM (F::Cause F::Agentive) (F::Aspect F::bounded) (F::Time-span F::atomic))
-   (TEMPL AGENT-affected-XP-TEMPL)
+   (SEM (F::Cause F::Agentive) (F::Aspect F::bounded) (F::Time-span F::extended))
+   (TEMPL AGENT-AFFECTED-XP-NP-TEMPL)
    )
   )
  )

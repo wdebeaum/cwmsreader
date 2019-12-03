@@ -1,5 +1,6 @@
 package handlers;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -129,8 +130,9 @@ public class InterpretSpeechActHandler extends MessageHandler implements Runnabl
 		}
 
 		Query queryToAnswer = null;
+		// If we start having a problem with answering other things check here
 		for (Query q : goalPlanner.getQueries()) {
-			if (q.getParent() != null && q.getParent().equals(currentAcceptedGoal) &&
+			if (q.getParent() != null && //q.getParent().equals(currentAcceptedGoal) &&
 					!q.isAnswered() && !q.isFailed()) {
 				queryToAnswer = q;
 				break;
@@ -374,6 +376,8 @@ public class InterpretSpeechActHandler extends MessageHandler implements Runnabl
 				goalPlanner.setActiveGoal(testSelect);
 			}
 		}
+		
+		// Get the right goal type
 		KQMLContentContext proposeAdoptContentContext;
 		if (proposeAdoptContent == null) {
 			proposeAdoptContentContext = goalAdder.getGoalAdditionType(innerContent, 
@@ -383,6 +387,7 @@ public class InterpretSpeechActHandler extends MessageHandler implements Runnabl
 			proposeAdoptContentContext = new KQMLContentContext(proposeAdoptContent,
 																context);
 
+		// Fill in additional context if needed
 		newContext.addAll((KQMLList) proposeAdoptContentContext.getContext());
 		if (currentAcceptedGoal != null)
 			newContext.addAll(currentAcceptedGoal.getAdditionalContext());
@@ -400,13 +405,21 @@ public class InterpretSpeechActHandler extends MessageHandler implements Runnabl
 
 		KQMLList whatTerm = TermExtractor.extractTerm(what, (KQMLList) context);
 		String suchThat = null;
+		
+		boolean hasSuchThat = (innerContent.getKeywordArg(":SUCHTHAT") != null && 
+				!KQMLUtilities.isKQMLNull(innerContent.getKeywordArg(":SUCHTHAT")));
+		boolean hasWhatSuchThat = (whatTerm != null && whatTerm.getKeywordArg(":SUCHTHAT") != null &&
+										KQMLUtilities.isKQMLNull(whatTerm.getKeywordArg(":SUCHTHAT")));
 
-		if (innerContent.getKeywordArg(":SUCHTHAT") != null)
+		if (hasSuchThat)
 			suchThat = innerContent.getKeywordArg(":SUCHTHAT").stringValue();
-		else if (whatTerm != null && whatTerm.getKeywordArg(":SUCHTHAT") != null)
+		else if (hasWhatSuchThat)
 			suchThat = whatTerm.getKeywordArg(":SUCHTHAT").stringValue();
 
-		KQMLList suchThatTerm = TermExtractor.extractTerm(suchThat, context);
+		
+		KQMLList suchThatTerm = null;
+		if (suchThat != null)
+			suchThatTerm = TermExtractor.extractTerm(suchThat, context);
 
 		KQMLList askWhatIsContent = new KQMLList();
 		askWhatIsContent.add("ASK-WH");
@@ -417,7 +430,7 @@ public class InterpretSpeechActHandler extends MessageHandler implements Runnabl
 
 		KQMLList conditionalContent = new KQMLList();
 
-		if (conditional || suchThatTerm.getKeywordArg(":CONDITION") != null) {
+		if (conditional || (suchThatTerm != null && suchThatTerm.getKeywordArg(":CONDITION") != null)) {
 			conditional = true;
 			conditionalContent.add("ont::RELN");
 			String newConditionalId = IDHandler.getNewID();
@@ -432,7 +445,7 @@ public class InterpretSpeechActHandler extends MessageHandler implements Runnabl
 				conditionalContent.add(":factor");
 				String condition = conditionObject.stringValue();
 				conditionalContent.add(condition);
-			} else if (suchThatTerm.getKeywordArg(":CONDITION") != null) {
+			} else if (suchThatTerm != null && suchThatTerm.getKeywordArg(":CONDITION") != null) {
 				conditionalContent.add(":factor");
 				String condition = suchThatTerm.getKeywordArg(":CONDITION").stringValue();
 				conditionalContent.add(condition);
@@ -472,6 +485,47 @@ public class InterpretSpeechActHandler extends MessageHandler implements Runnabl
 	}
 
 	private KQMLList handleAbandon() {
+		// Check if this should be an adopt event of removing a constraint, part of a model, etc.
+		KQMLList thingToAbandon = KQMLUtilities.findTermInKQMLList(what, context);
+		
+		if (thingToAbandon != null && thingToAbandon.getKeywordArg(":INSTANCE-OF") != null)
+		{
+			
+			String instanceToAbandon = thingToAbandon.getKeywordArg(":INSTANCE-OF").stringValue();
+			System.out.println("Instance to abandon: " + instanceToAbandon);
+			if (ontologyReader.isGoalWithArgument("ABANDON", instanceToAbandon))
+			{
+				Goal currentAcceptedGoal = goalPlanner.getActiveGoal();
+				if (currentAcceptedGoal != null)
+					activeGoal = currentAcceptedGoal.getVariableName();
+				KQMLContentContext proposeAdoptContentContext;
+				KQMLList newContext = new KQMLList();
+				KQMLList removeGoalKQML = null;
+				try {
+					removeGoalKQML = KQMLList.fromString("(ONT::RELN " + IDHandler.getNewTermID() + 
+										" :INSTANCE-OF ONT::OMIT " + ":AFFECTED " + what + ")");
+				} catch (IOException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+				Goal removeGoal = new Goal(removeGoalKQML,context);
+				newContext.addAll(context);
+				newContext.add(removeGoalKQML);
+				proposeAdoptContentContext = goalAdder.getGoalAdditionType(innerContent, 
+																	newContext, id, removeGoal.getVariableName());
+
+				newContext.addAll((KQMLList) proposeAdoptContentContext.getContext());
+				
+				if (currentAcceptedGoal != null)
+					newContext.addAll(currentAcceptedGoal.getAdditionalContext());
+
+				newContext = KQMLUtilities.removedDuplicates(newContext);
+				return Messages.reportContent(proposeAdoptContentContext.getContent(),
+												newContext);
+			}
+		}
+		
+		// See if there is a goal that should be abandoned or rejected
 		
 		Goal goalToAbandon = goalSelector.findGoalToAbandon(what, context);
 		Goal proposalToReject = goalSelector.findProposalOrQuestionToReject(what, context);

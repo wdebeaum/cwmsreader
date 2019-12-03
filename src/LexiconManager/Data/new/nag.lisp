@@ -2,7 +2,7 @@
 ;;;; W::nag
 ;;;;
 
-(define-words :pos W::v :templ AGENT-THEME-XP-TEMPL
+(define-words :pos W::v :TEMPL AGENT-FORMAL-XP-TEMPL
  :words (
    (W::nag
    (SENSES
@@ -11,14 +11,14 @@
      (LF-PARENT  ONT::complain)
      (example "he nagged all day")
      (SEM (F::Aspect F::unbounded) (F::Time-span F::extended))
-     (TEMPL AGENT-TEMPL)
+     (TEMPL AGENT-AFFECTED-XP-OPTIONAL-B-TEMPL)
      (preference .98)
      )
-    (;;(LF-PARENT ONT::TALK)
+    #|(;;(LF-PARENT ONT::TALK)
      (LF-PARENT  ONT::complain)
      (example "he nagged him about it")
      (TEMPL AGENT-ADDRESSEE-ASSOCIATED-INFORMATION-TEMPL)
-      )
+      )|#
     )
    )
 ))

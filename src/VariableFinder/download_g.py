@@ -15,7 +15,7 @@ def download_file_from_google_drive(id, destination):
         with open(destination, "wb") as f:
             try:
                 total_size = int(response.headers.get('content-length'))
-                print 'file total size :',total_size
+                print('file total size :',total_size)
             except TypeError:
                 total_size = 259672272
             count = 1
@@ -50,7 +50,7 @@ def download_file_from_google_drive(id, destination):
 if __name__ == "__main__":
     import sys
     if len(sys.argv) is not 3:
-        print "Usage: python google_drive.py drive_file_id destination_file_path"
+        print("Usage: python google_drive.py drive_file_id destination_file_path")
     else:
         # TAKE ID FROM SHAREABLE LINK
         file_id = sys.argv[1]

@@ -14,7 +14,7 @@
    )
 ))
 
-(define-words :pos W::v :templ AGENT-THEME-XP-TEMPL
+(define-words :pos W::v :TEMPL AGENT-FORMAL-XP-TEMPL
  :tags (:base500)
  :words (
   (W::ANSWER
@@ -26,7 +26,7 @@
     ((LF-PARENT ONT::SAY)
      (example "if it says rain then answer yes")
      (SEM (F::Aspect F::bounded) (F::Time-span F::extended))
-     (TEMPL AGENT-THEME-XP-TEMPL (xp (% w::utt)))
+     (TEMPL AGENT-FORMAL-XP-TEMPL (xp (% w::utt)))
      (meta-data :origin task-learning :entry-date 20051109 :change-date nil :comments nil)
      )
 |#

@@ -39,6 +39,34 @@ public class StandardCWCModule extends StandardTripsModule {
     return name;
   }
 
+  /** Reply to msg with a report whose content is action; if msg is null, just
+   * tell the report.
+   */
+  public void report(KQMLPerformative msg, KQMLObject action) {
+    boolean replying = (msg != null);
+    KQMLPerformative top = new KQMLPerformative(replying ? "reply" : "tell");
+    KQMLPerformative report = new KQMLPerformative("report");
+    report.setParameter(":content", action);
+    top.setParameter(":content", report);
+    if (replying) {
+      reply(msg, top);
+    } else {
+      send(top);
+    }
+  }
+  public void report(KQMLPerformative action) { report(null, action); }
+
+  /** Report an answer with a single argument. */
+  public void answer(KQMLPerformative msg, String key, KQMLObject val) {
+    KQMLPerformative ans = new KQMLPerformative("answer");
+    ans.setParameter(key, val);
+    report(msg, ans);
+  }
+
+  public void answer(KQMLPerformative msg, String key, String val) {
+    answer(msg, key, new KQMLToken(val));
+  }
+
   /** Convert a Java exception to a KQML failure structure. */
   public static KQMLPerformative exceptionToFailure(Exception e) {
     if (e instanceof CWCException) {
@@ -59,17 +87,21 @@ public class StandardCWCModule extends StandardTripsModule {
    */
   public void reportFailure(Exception e, KQMLPerformative msg) {
     KQMLPerformative failure = exceptionToFailure(e);
-    KQMLPerformative report = new KQMLPerformative("report");
-    report.setParameter(":content", failure);
-    if (msg == null) {
-      KQMLPerformative tell = new KQMLPerformative("tell");
-      tell.setParameter(":content", report);
-      send(tell);
-    } else {
-      KQMLPerformative reply = new KQMLPerformative("reply");
-      reply.setParameter(":content", report);
-      reply(msg, reply);
+    try {
+      report(msg, failure);
+    } catch (RuntimeException e2) {
+      System.err.println("There was a problem reporting this exception as a failure:");
+      e.printStackTrace();
+      System.err.println("The problem was:");
+      e2.printStackTrace();
+      System.err.println("Reporting that failure instead.");
+      reportFailure(e2, msg);
     }
+  }
+
+  // just in case I mix up the args...
+  public void reportFailure(KQMLPerformative msg, Exception e) {
+    reportFailure(e, msg);
   }
 
   public void reportFailure(Exception e) { reportFailure(e, null); }
@@ -173,7 +205,7 @@ public class StandardCWCModule extends StandardTripsModule {
 	throw new UnknownAction(verb);
       }
     } catch (Exception e) {
-      reportFailure(e, msg);
+      reportFailure(e); // NOTE: no msg, we don't want to reply to tells
     }
   }
 

@@ -19,27 +19,30 @@
    )
 ))
 
-(define-words :pos W::v :templ AGENT-affected-XP-TEMPL
+(define-words :pos W::v :TEMPL AGENT-AFFECTED-XP-NP-TEMPL
  :words (
   (W::return
    (wordfeats (W::morph (:forms (-vb) :nom W::return)))
    (SENSES
 
-    ((LF-PARENT ONT::RESTART)
+    ((LF-PARENT ONT::RESUME)
      (example "he returned to watching tv")
      (SEM (F::Aspect F::bounded) (F::Time-span F::atomic))
-     (TEMPL AGENT-formal-to-ing-TEMPL)
+     (TEMPL AGENT-FORMAL-CP-SUBJCONTROL-TEMPL)
      )
+    #|
     ((LF-PARENT ONT::RETURN)
      (SEM (F::Aspect F::bounded) (F::Time-span F::atomic))
      (example "the truck/the cargo returned (to/from Avon)")
      (TEMPL affected-templ)
      (PREFERENCE 0.98)
      )
+    |#
     ((LF-PARENT ONT::RETURN)
      (example "he returned the hat" "return him to the station")
      (SEM (F::Cause F::agentive) (F::Aspect F::bounded) (F::time-span F::atomic))
-     (TEMPL agent-affected-xp-optional-templ)
+     (TEMPL AGENT-AFFECTED-XP-OPTIONAL-B-TEMPL)
+     ;(TEMPL AGENT-AFFECTED-XP-NP-TEMPL)
      )
    
    )

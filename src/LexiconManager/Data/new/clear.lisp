@@ -13,9 +13,10 @@
      (PREFERENCE 0.96)
      )
     
-    ((LF-PARENT ONT::empty)
+    (;(LF-PARENT ONT::empty)
+     (LF-PARENT ONT::cause-clear)
      (SEM (F::Cause F::Agentive) (F::Aspect F::bounded) (F::Time-span F::extended))
-     (TEMPL AGENT-source-affected-optional-TEMPL (xp (% W::pp (W::ptype W::of))))
+     (TEMPL AGENT-AFFECTEDR-AFFECTED-XP-PP-OF-OPTIONAL-TEMPL (xp (% W::pp (W::ptype W::of))))
      (example "clear the airfield of debris")
      )
     #|
@@ -31,11 +32,12 @@
    )
 ))
 
-(define-words :pos W::v :templ AGENT-affected-XP-TEMPL
+(define-words :pos W::v :TEMPL AGENT-AFFECTED-XP-NP-TEMPL
  :words (
   ((W::clear (W::out))
    (SENSES
-    ((LF-PARENT ONT::empty)
+    (;(LF-PARENT ONT::empty)
+     (LF-PARENT ONT::cause-clear)
      (SEM (F::Cause F::Agentive) (F::Aspect F::bounded) (F::Time-span F::extended))
      (example "clear out the airfield")
      )
@@ -43,7 +45,7 @@
    )
 ))
 
-(define-words :pos W::v :templ AGENT-affected-XP-TEMPL
+(define-words :pos W::v :TEMPL AGENT-AFFECTED-XP-NP-TEMPL
  :words (
   (W::clear
    (wordfeats (W::morph (:forms (-vb) :nom w::clearance)))

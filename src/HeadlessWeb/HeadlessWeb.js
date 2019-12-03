@@ -90,18 +90,21 @@ util.inherits(HeadlessWeb, TripsModule);
         search + "\")",
       "(submit-form :select form)",
       "(get-text :select \"div.kpd-ans\")", // try this first, for e.g. pop. #s
+      "(get-text :select \"span.ILfuVd\")", // then this, for e.g. main crops
       "(get-text :select \"span.st\")" // more general case
     ].map(KQML.parse));
     var that = this;
     new WebProcedure(this, msg, function(results) {
       var excerpt = 'nil';
-      if (results.length != 2) {
+      if (results.length != 3) {
 	this.onError('Wrong number of results?!');
 	return;
       } else if (results[0].length > 0) {
 	excerpt = results[0][0];
       } else if (results[1].length > 0) {
 	excerpt = results[1][0];
+      } else if (results[2].length > 0) {
+	excerpt = results[2][0];
       }
       that.replyToMsg(msg, { 0: 'reply', content: { 0: 'report', content: { 0: 'answer', excerpt: excerpt } } });
     }).startNextStep();

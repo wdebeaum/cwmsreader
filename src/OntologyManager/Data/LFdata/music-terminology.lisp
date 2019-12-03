@@ -63,6 +63,7 @@
 (define-type ONT::MUSIC-COMPOSITION-ELEMENT
  :parent ONT::MUSIC
  :sem (F::abstr-obj (F::SCALE -))
+ :wordnet-sense-keys ("musical_notation%1:10:00")
 )
 
 (define-type ONT::BAR-MEASURE
@@ -124,7 +125,7 @@
 )
 
 (define-type ONT::MUSICAL-DOCUMENT
- :parent ONT::INFO-MEDIUM
+ :parent ONT::DOCUMENT ;INFO-MEDIUM
  :sem (F::Phys-obj)
  :wordnet-sense-keys ("sheet_music%1:10:00")
 )

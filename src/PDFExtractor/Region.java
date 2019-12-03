@@ -2,15 +2,18 @@ package TRIPS.PDFExtractor;
 
 import java.util.List;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.regex.Pattern;
 import java.awt.Color;
 import java.awt.Graphics;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.common.PDRectangle;
 //import technology.tabula.Page; conflicts
 import technology.tabula.Rectangle;
+import technology.tabula.RectangularTextContainer;
 import TRIPS.KQML.KQMLBadPerformativeException;
 import TRIPS.KQML.KQMLObject;
 import TRIPS.KQML.KQMLList;
@@ -22,14 +25,31 @@ import TRIPS.util.cwc.CWCException;
 import TRIPS.util.cwc.InvalidArgument;
 import TRIPS.util.cwc.UnknownObject;
 
-/** Represents a rectangular region of a page in a PDF document. */
-public class Region implements HasID {
+/** Represents a rectangular region of a {@link Page} in a PDF {@link Document}.
+ */
+public class Region implements HasID, TextMatch.Searchable, HasSortOrders<Region> {
   final String id;
   @Override public String getID() { return id; }
   Rectangle rect;
   Page page;
   Color color;
   boolean highlighted;
+  boolean fresh; // can't use "new"
+  public static enum Source {
+    /** The user manually selected the region. */
+    USER,
+    /** The system selected the region over KQML. */
+    SYSTEM,
+    /** We detected the region as a table. */
+    TABLE,
+    /** We detected the region as a paragraph. */
+    PARAGRAPH,
+    /** We detected the region as a horizontal ruling. */
+    HORIZONTAL,
+    /** We detected the region as a vertical ruling. */
+    VERTICAL;
+  };
+  final Source source;
 
   public static enum Coord { X1, Y1, X2, Y2 };
 
@@ -43,6 +63,8 @@ public class Region implements HasID {
   public double getMinY() { return Math.min(getY1(), getY2()); }
   public double getMaxX() { return Math.max(getX1(), getX2()); }
   public double getMaxY() { return Math.max(getY1(), getY2()); }
+  public double getCenterX() { return rect.getCenterX(); }
+  public double getCenterY() { return rect.getCenterY(); }
   public double getAbsWidth() { return Math.abs(rect.getWidth()); }
   public double getAbsHeight() { return Math.abs(rect.getHeight()); }
   public double getSignedWidth() { return rect.getWidth(); }
@@ -50,6 +72,14 @@ public class Region implements HasID {
   public Page getPage() { return page; }
   public Color getColor() { return color; }
   public void setColor(Color c) { color = c; }
+
+  public String getText() {
+    if (rect instanceof RectangularTextContainer) {
+      return ((RectangularTextContainer)rect).getText();
+    } else {
+      return ""; // TODO?
+    }
+  }
 
   /** Rearrange coordinates to get rid of any negative width or height. */
   public void normalize() {
@@ -65,6 +95,7 @@ public class Region implements HasID {
     // set width,height based on x,y and existing x1,y1
     double x1 = rect.getX(), y1 = rect.getY();
     rect.setRect(x1, y1, x - x1 + 1.0, y - y1 + 1.0);
+    page.emit(new Page.Event(Page.Event.Type.REGION_CHANGED, this));
   }
 
   /** Set the coordinates of one of the four corners, specified by coords,
@@ -76,6 +107,7 @@ public class Region implements HasID {
 	   x2 = coords.contains(Coord.X2) ? x : getX2(),
 	   y2 = coords.contains(Coord.Y2) ? y : getY2();
     rect.setRect(clampRectToPage(x1, y1, x2, y2, page));
+    page.emit(new Page.Event(Page.Event.Type.REGION_CHANGED, this));
   }
 
   final double HANDLE_RADIUS = 5; // pixels
@@ -93,7 +125,9 @@ public class Region implements HasID {
     return ret;
   }
 
-  public Region(Rectangle rect, Page page, Color color, String id) {
+  public Region(Rectangle rect, Page page,
+		Source source, Color color, String id) {
+    this.fresh = true;
     this.rect = rect;
     this.page = page;
     this.color = color;
@@ -107,11 +141,12 @@ public class Region implements HasID {
       HasID.put(this);
     }
     highlighted = true;
+    this.source = source;
     this.page.addRegion(this);
   }
 
-  public Region(Rectangle rect, Page page) {
-    this(rect, page, null, null);
+  public Region(Rectangle rect, Page page, Source source) {
+    this(rect, page, source, null, null);
   }
 
   /** Return the minimum Rectangle containing both (x1,y1) and (x2,y2), except
@@ -142,13 +177,14 @@ public class Region implements HasID {
   /** Create an axis-aligned rectangle containing pixel positions (x1,y1) and (x2,y2) on the PDF page page, to be drawn in the specified color, having the specified ID.
    */
   public Region(double x1, double y1, double x2, double y2, 
-                Page page, Color color, String id) {
-    this(clampRectToPage(x1,y1,x2,y2,page), page, color, id);
+                Page page, Source source, Color color, String id) {
+    this(clampRectToPage(x1,y1,x2,y2,page), page, source, color, id);
   }
   
   /** Create a Region, assigning it a random-hued color and an arbitrary ID. */
-  public Region(double x1, double y1, double x2, double y2, Page page) {
-    this(x1,y1, x2,y2, page, null, null);
+  public Region(double x1, double y1, double x2, double y2,
+		Page page, Source source) {
+    this(x1,y1, x2,y2, page, source, null, null);
   }
 
   public void remove() {
@@ -175,6 +211,13 @@ public class Region implements HasID {
       highlighted = h;
       page.emit(new Page.Event((h ? Page.Event.Type.REGION_HIGHLIGHTED : Page.Event.Type.REGION_UNHIGHLIGHTED), this));
     }
+  }
+
+  public boolean isNew() { return fresh; }
+  public void setNew(boolean n) {
+    if (!n)
+      page.emit(new Page.Event(Page.Event.Type.REGION_STOPPED_CHANGING, this));
+    fresh = n;
   }
 
   /** Return true iff this region contains the pixel at coordinates x,y.
@@ -214,15 +257,25 @@ public class Region implements HasID {
 
   /** Return a KQML representation of this region.
    */
-  @Override public KQMLObject toKQML() {
-    KQMLList reg = new KQMLList();
-    reg.add("rectangle");
-    reg.add(":id"); reg.add(getID());
-    reg.add(":page"); reg.add(page.toKQML());
-    reg.add(":x"); reg.add(Double.toString(getMinX()));
-    reg.add(":y"); reg.add(Double.toString(getMinY()));
-    reg.add(":w"); reg.add(Double.toString(getAbsWidth()));
-    reg.add(":h"); reg.add(Double.toString(getAbsHeight()));
+  @Override public KQMLObject toKQML() { return toKQML(true); }
+  public KQMLObject toKQML(boolean includePage) {
+    KQMLPerformative reg;
+    if (source == Source.HORIZONTAL) {
+      reg = new KQMLPerformative("horizontal");
+    } else if (source == Source.VERTICAL) {
+      reg = new KQMLPerformative("vertical");
+    } else {
+      reg = new KQMLPerformative("rectangle");
+    }
+    reg.setParameter(":id", getID());
+    if (includePage)
+      reg.setParameter(":page", page.toKQML(false));
+    reg.setParameter(":x", Double.toString(getMinX()));
+    reg.setParameter(":y", Double.toString(getMinY()));
+    if (source != Source.VERTICAL)
+      reg.setParameter(":w", Double.toString(getAbsWidth()));
+    if (source != Source.HORIZONTAL)
+      reg.setParameter(":h", Double.toString(getAbsHeight()));
     return reg;
   }
 
@@ -243,17 +296,299 @@ public class Region implements HasID {
       } else {
 	double x1 = Args.getTypedArgument(perf, ":x", Double.class);
 	double y1 = Args.getTypedArgument(perf, ":y", Double.class);
-	double x2 = x1 + Args.getTypedArgument(perf, ":w", Double.class);
-	double y2 = y1 + Args.getTypedArgument(perf, ":h", Double.class);
+	double x2 = x1 + Args.getTypedArgument(perf, ":w", Double.class, 1.0);
+	double y2 = y1 + Args.getTypedArgument(perf, ":h", Double.class, 1.0);
 	KQMLObject pageKQML =
 	  Args.getTypedArgument(perf, ":page", KQMLObject.class);
 	Page page = Page.fromKQML(pageKQML);
-        return new Region(x1,y1, x2,y2, page);
+        return new Region(x1,y1, x2,y2, page, Source.SYSTEM);
       }
     } else if (listOrID instanceof KQMLToken) {
       return HasID.get(listOrID.toString(), Region.class);
     } else {
       throw new InvalidArgument("nil", ":region", "list or id", listOrID);
     }
+  }
+
+  @Override
+  public List<TextMatch> search(Pattern searchPattern) {
+    String context = getText();
+    List<TextMatch> matches = TextMatch.search(searchPattern, context);
+    List<TextMatch> matchesHere = new ArrayList<TextMatch>(matches.size());
+    for (TextMatch m : matches) { matchesHere.add(m.inRegion(this)); }
+    return matchesHere;
+  }
+
+  /** A relationship between two Regions. May be abstract or concrete. A
+   * concrete Relation has actual Region IDs in the aID/bID fields, and
+   * single IntervalRelations. An abstract Relation may have variables
+   * (starting with "?") in the aID/bID fields, and may have null
+   * IntervalRelations (standing for "any") or nontrivial sets of
+   * IntervalRelations.
+   */
+  public static class Relation {
+    public final String aID;
+    public final EnumSet<IntervalRelation> horizontally;
+    public final EnumSet<IntervalRelation> vertically;
+    public final String bID;
+
+    public Relation(String aID, EnumSet<IntervalRelation> horizontally, EnumSet<IntervalRelation> vertically, String bID) {
+      this.aID = aID;
+      this.horizontally = horizontally;
+      this.vertically = vertically;
+      this.bID = bID;
+    }
+    
+    public Relation(String aID, IntervalRelation horizontally, IntervalRelation vertically, String bID) {
+      this(aID, EnumSet.of(horizontally), EnumSet.of(vertically), bID);
+    }
+
+    /** Return the concrete relation between regions a and b. */
+    public static Relation of(Region a, Region b) {
+      return new Relation(
+        a.getID(),
+	IntervalRelation.of(a.getMinX(), a.getMaxX(), b.getMinX(), b.getMaxX()),
+	IntervalRelation.of(a.getMinY(), a.getMaxY(), b.getMinY(), b.getMaxY()),
+        b.getID()
+      );
+    }
+
+    /** Is the value of aID or bID a variable? */
+    public static boolean isVar(String id) { return id.startsWith("?"); }
+
+    /** Return a new Relation that substitutes aID/bID with their values in the
+     * bindings map, if any.
+     */
+    public Relation substituteVars(Map<String,String> bindings) {
+      return new Relation(
+        bindings.containsKey(aID) ? bindings.get(aID) : aID,
+	horizontally, vertically,
+        bindings.containsKey(bID) ? bindings.get(bID) : bID
+      );
+    }
+
+    static <T extends Enum<T>> boolean unifies(EnumSet<T> a, EnumSet<T> b) {
+      if (a == null || b == null) return true;
+      EnumSet<T> intersection = a.clone();
+      intersection.retainAll(b);
+      //System.err.println(a.toString() + " ∩ " + b.toString() + " = " + intersection.toString());
+      return !intersection.isEmpty();
+    }
+
+    /** Attempt to unify this abstract relation (which must have already-bound
+     * vars substituted) with the concrete relation other, while adding any
+     * necessary variable bindings to the given bindings map (if non-null).
+     */
+    public boolean unifyWith(Relation other, Map<String,String> bindings) {
+      if (!(unifies(horizontally, other.horizontally) &&
+	    unifies(vertically, other.vertically)))
+	return false;
+      boolean bindA = false;
+      boolean bindB = false;
+      if (isVar(aID)) {
+	bindA = true;
+      } else if (!aID.equalsIgnoreCase(other.aID)) {
+	return false;
+      }
+      if (isVar(bID)) {
+	bindB = true;
+      } else if (!bID.equalsIgnoreCase(other.bID)) {
+	return false;
+      }
+      if (bindings != null) {
+	if (bindA) bindings.put(aID, other.aID);
+	if (bindB) bindings.put(bID, other.bID);
+      }
+      return true;
+    }
+    public boolean unifyWith(Relation other) { return unifyWith(other, null); }
+
+    public static EnumSet<IntervalRelation> getIntervalRelationArgument(
+        KQMLPerformative perf, String key) throws CWCException {
+      EnumSet<IntervalRelation> s = null;
+      KQMLObject o = perf.getParameter(key);
+      if (o != null) {
+	if (o instanceof KQMLToken) {
+	  s = EnumSet.of(IntervalRelation.fromKQML((KQMLToken)o));
+	} else if (o instanceof KQMLList) {
+	  KQMLList l = (KQMLList)o;
+	  s = EnumSet.noneOf(IntervalRelation.class);
+	  for (KQMLObject e : l) {
+	    if (!(e instanceof KQMLToken))
+	      throw new InvalidArgument("relation", key, "token or list of tokens", o);
+	    s.add(IntervalRelation.fromKQML((KQMLToken)e));
+	  }
+	} else {
+	  throw new InvalidArgument("relation", key, "token or list of tokens", o);
+	}
+      }
+      return s;
+    }
+    
+    static void setIntervalRelationArgument(
+        KQMLPerformative perf, String key, EnumSet<IntervalRelation> val) {
+      if (val == null) return;
+      KQMLList l = new KQMLList();
+      for (IntervalRelation r : val)
+	l.add(r.toKQML());
+      perf.setParameter(key, (l.size() == 1 ? l.get(0) : l));
+    }
+
+    public static Relation fromKQML(KQMLObject o) throws CWCException {
+      KQMLPerformative perf = null;
+      if (o instanceof KQMLPerformative) {
+	perf = (KQMLPerformative)o;
+      } else if (o instanceof KQMLList) {
+	try {
+	  perf = new KQMLPerformative((KQMLList)o);
+	} catch (KQMLBadPerformativeException ex) {
+	  throw new InvalidArgument("nil", ":relation", "performative", o);
+	}
+      } else {
+	throw new InvalidArgument("nil", ":relation", "performative", o);
+      }
+      KQMLToken aID = Args.getTypedArgument(perf, ":a", KQMLToken.class);
+      EnumSet<IntervalRelation> horizontally =
+        getIntervalRelationArgument(perf, ":horizontally");
+      EnumSet<IntervalRelation> vertically =
+        getIntervalRelationArgument(perf, ":vertically");
+      KQMLToken bID = Args.getTypedArgument(perf, ":b", KQMLToken.class);
+      // TODO? check that aID and bID are either ?vars or ID known regions
+      return new Relation(aID.toString(), horizontally, vertically, bID.toString());
+    }
+
+    public KQMLPerformative toKQML() {
+      KQMLPerformative reln = new KQMLPerformative("relation");
+      reln.setParameter(":a", aID);
+      setIntervalRelationArgument(reln, ":horizontally", horizontally);
+      setIntervalRelationArgument(reln, ":vertically", vertically);
+      reln.setParameter(":b", bID);
+      return reln;
+    }
+  }
+
+  /** An ordering to sort Regions by. */
+  public static class Order implements Comparator<Region> {
+    /** Where to get the value to sort by. */
+    interface Key {
+      double of(Region r);
+      KQMLObject toKQML();
+    }
+    /** Order regions based on one coordinate. */
+    enum SimpleKey implements Key {
+      MIN_X, MIN_Y, MAX_X, MAX_Y, WIDTH, HEIGHT;
+
+      /** Get the value to sort by. */
+      @Override
+      public double of(Region r) {
+	switch (this) {
+	  case MIN_X: return r.getMinX();
+	  case MIN_Y: return r.getMinY();
+	  case MAX_X: return r.getMaxX();
+	  case MAX_Y: return r.getMaxY();
+	  case WIDTH: return r.getAbsWidth();
+	  case HEIGHT: return r.getAbsHeight();
+	  default: throw new RuntimeException("WTF java, this is exhaustive.");
+	}
+      }
+
+      @Override
+      public KQMLObject toKQML() {
+	return new KQMLToken(name().toLowerCase().replace('_', '-'));
+      }
+
+      public static Key fromKQML(KQMLToken k) {
+	String s = k.toString().toUpperCase().replace('-', '_');
+	// aliases
+	switch (s) {
+	  case "X":
+	  case "X1":
+	  case "LEFT":	s = "MIN_X"; break;
+	  case "Y":
+	  case "Y1":
+	  case "TOP":	s = "MIN_Y"; break;
+	  case "X2":
+	  case "RIGHT":	s = "MAX_X"; break;
+	  case "Y2":
+	  case "BOTTOM":s = "MAX_Y"; break;
+	  case "W":	s = "WIDTH"; break;
+	  case "H":	s = "HEIGHT"; break;
+	}
+	return Enum.valueOf(SimpleKey.class, s);
+      }
+    }
+    /** Order regions in relation to a target region, using an abstract
+     * distance metric based on all the coordinates.
+     */
+    public static class DistanceKey implements Key {
+      public final Region target;
+      public DistanceKey(Region target) {
+	this.target = target;
+      }
+      @Override
+      public double of(Region r) {
+	Page page = r.getPage();
+	PDRectangle pageBB = page.getPDBBox();
+	double pageWidth = pageBB.getWidth();
+	double pageHeight = pageBB.getHeight();
+	double deltaCenterX = Math.abs(r.getCenterX() - target.getCenterX());
+	double deltaCenterY = Math.abs(r.getCenterY() - target.getCenterY());
+	double targetWidth = target.getAbsWidth();
+	double targetHeight = target.getAbsHeight();
+	double deltaWidth = Math.abs(r.getAbsWidth() - targetWidth);
+	double deltaHeight = Math.abs(r.getAbsHeight() - targetHeight);
+	return deltaCenterX / pageWidth + deltaCenterY / pageHeight +
+	       deltaWidth / targetWidth + deltaHeight / targetHeight;
+      }
+      @Override
+      public KQMLObject toKQML() {
+	return new KQMLList(new KQMLToken("distance"), target.toKQML());
+      }
+    }
+    public final Key key;
+    /** Direction to sort in. */
+    public final boolean ascending;
+
+    public Order(Key key, boolean ascending) {
+      this.key = key;
+      this.ascending = ascending;
+    }
+
+    public KQMLObject toKQML() {
+      return new KQMLList(key.toKQML(),
+			  new KQMLToken(ascending ? "asc" : "desc"));
+    }
+
+    public static Order fromKQML(KQMLList l) {
+      if (!(l.size() == 2 &&
+	    (l.get(0) instanceof KQMLToken) &&
+	    (l.get(1) instanceof KQMLToken)))
+	throw new IllegalArgumentException();
+      boolean ascending = ascendingFromKQML(l.get(1));
+      return new Order(SimpleKey.fromKQML((KQMLToken)l.get(0)), ascending);
+    }
+
+    public static boolean ascendingFromKQML(KQMLObject o) {
+      switch (o.toString().toUpperCase()) {
+	case "ASC":
+	case "ASCENDING": return true;
+	case "DESC":
+	case "DESCENDING": return false;
+	default: throw new IllegalArgumentException();
+      }
+    }
+
+    @Override
+    public int compare(Region a, Region b) {
+      return Double.compare(key.of(a), key.of(b)) * (ascending ? 1 : -1);
+    }
+  }
+  @Override
+  public Comparator<Region> orderFromKQML(KQMLList l) {
+    return Order.fromKQML(l);
+  }
+  @Override
+  public String kqmlExpectedForOrder() {
+    return "list of two tokens: ({{max|min}-{x|y}|width|height} {asc|desc})";
   }
 }

@@ -9,6 +9,9 @@ var lfformat;
 var debugCheckbox;
 var debugDiv;
 var displayCSSRules;
+var hypInput;
+var hypStyleSheet;
+var correctHyp;
 
 function initVars() {
   extscontents = document.getElementById("extscontents");
@@ -20,6 +23,58 @@ function initVars() {
   debugCheckbox = document.getElementById("debug-checkbox");
   debugDiv = document.getElementById("debug-div");
   displayCSSRules = document.styleSheets[0].cssRules;
+  hypInput = document.getElementById("hyp");
+  hypStyleSheet = document.styleSheets[1];
+}
+
+function initHypDisplay() {
+  // detect if this is a saved parse, and extract correctHyp from the filename
+  var path = new URL(window.location.href).pathname;
+  var m = path.match(/\/\d{8}T\d{6}-\w+-\w+-(\d+|none)-.*?\.xml$/);
+  if (m) {
+    correctHyp = (m[1] == 'none' ? m[1] : parseInt(m[1]));
+  }
+  // initially show the correct hyp, if any; otherwise the first one
+  var initialHyp = (('number' == typeof correctHyp) ? correctHyp : 0);
+  var i;
+  for (i = 0; document.getElementsByClassName("hyp-" + i).length > 0; i++) {
+    hypStyleSheet.insertRule(
+      ".hyp-" + i + ((i == initialHyp) ? " { }" : " { display: none; }"),
+      hypStyleSheet.cssRules.length
+    );
+    if (undefined !== correctHyp) {
+      var lfHeadings = document.querySelectorAll('div.hyp-' + i + ' h2.lf');
+      for (var j = 0; j < lfHeadings.length; j++) {
+	lfHeadings[j].classList.add(
+	  (i === correctHyp) ? 'correct' : 'incorrect'
+	);
+      }
+    }
+  }
+  if (i == 0 && // no .hyp-0 means there's only one hyp, and it's not in a div
+      undefined !== correctHyp) {
+    var lfHeadings = document.querySelectorAll('h2.lf');
+    for (var j = 0; j < lfHeadings.length; j++) {
+      lfHeadings[j].classList.add(
+	(i === correctHyp) ? 'correct' : 'incorrect'
+      );
+    }
+  }
+  if (hypInput) {
+    hypInput.value = initialHyp;
+    if (undefined !== correctHyp) {
+      hypInput.parentNode.className = ((initialHyp === correctHyp) ? 'correct' : 'incorrect');
+    }
+  }
+}
+
+function displayHyp(hyp) {
+  for (var i = 0; i < hypStyleSheet.cssRules.length; i++) {
+    hypStyleSheet.cssRules[i].style.display = ((i == hyp) ? '' : 'none');
+  }
+  if (hypInput && undefined !== correctHyp) {
+    hypInput.parentNode.className = ((hyp === correctHyp) ? 'correct' : 'incorrect');
+  }
 }
 
 function setDisplay(node, displayOn) {
@@ -187,6 +242,7 @@ function dotsToSVG() {
 
 function bodyLoaded() {
   initVars();
+  initHypDisplay();
   downcaseHack();
   setAllDisplay();
   dotsToSVG();

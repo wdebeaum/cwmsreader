@@ -43,6 +43,14 @@
   :subscribe t)
 
 (defcomponent-handler
+    '(request &key :content (generate . *))
+    #'(lambda (msg args)
+	(handle-generate msg args))
+			 
+  :subscribe t)
+
+
+(defcomponent-handler
     '(tell &key :content (define-parameter . *))
     #'(lambda (msg args)
 	(apply #'define-parameter+ args))

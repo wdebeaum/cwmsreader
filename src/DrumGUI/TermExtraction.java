@@ -1,7 +1,7 @@
 /*
  * TermExtraction.java
  *
- * $Id: TermExtraction.java,v 1.59 2018/11/08 21:25:42 lgalescu Exp $
+ * $Id: TermExtraction.java,v 1.65 2019/11/07 19:54:11 lgalescu Exp $
  *
  * Author: Lucian Galescu <lgalescu@ihmc.us>, 8 Jan 2015
  */
@@ -9,12 +9,14 @@
 package TRIPS.DrumGUI;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.ListIterator;
 
 import TRIPS.KQML.KQMLList;
 import TRIPS.KQML.KQMLObject;
+import TRIPS.KQML.KQMLString;
 import TRIPS.KQML.KQMLToken;
 
 /**
@@ -57,16 +59,20 @@ public class TermExtraction extends Extraction {
         // :LOC id :LOCMOD ontType --> location
         LOC(":LOC"),
         LOCMOD(":LOCMOD"), // location modifier
+        LOCATION(":LOCATION"), // LF-term attribute for :LOC
         //
         ASSOC_POSS(":ASSOC-POSS"),
         // various 
         SIZE(":SIZE"),
         SCALE(":SCALE"),
         QUAN(":QUAN"), // quantifier
+        REFSET(":REFSET"), // reference set for parts
+        ID_AS(":IDENTIFIED-AS"),
         // numbers
         VALUE(":VALUE"), // numbers
         MIN(":MIN"), // numbers
         MAX(":MAX"), // numbers
+        MOD(":MOD"), // numbers TODO: find out if it applied to other terms
         VALSEQ(":VAL"), // sequence of numbers
         QUANTITY(":QUANTITY"), // quantities
         AMOUNT(":AMOUNT"), // quantities
@@ -79,7 +85,11 @@ public class TermExtraction extends Extraction {
         MONTH(":MONTH"), // time
         YEAR(":YEAR"), // time
         TIME(":TIME"), // time
-        TIMEMOD(":TIMEMOD") // time modifier
+        TIMEMOD(":TIMEMOD"), // time modifier
+        PHASE(":PHASE"), // another time modifier
+        // [:FROM id] :TO id --> {CWMS} time-range attributes
+        FROM(":FROM"),
+        TO(":TO"),
         ;
         private String attrName;
         private Attribute(String name) { attrName = name; }
@@ -120,6 +130,17 @@ public class TermExtraction extends Extraction {
         private PolyAttribute(String name) {
             attrName = name;
         }
+        
+        /**
+         * Stores alternative names of poly-attributes.
+         * For now we only handle one alternative per modifier.
+         */
+        private static HashMap<PolyAttribute, String> altNames;
+        static {
+            altNames = new HashMap<PolyAttribute, String>();
+            altNames.put(ASSOC, ":ASSOC-WITH");
+        }
+
 
         public String toString() {
             return attrName;
@@ -330,11 +351,12 @@ public class TermExtraction extends Extraction {
             ListIterator<KQMLObject> iterator;
             for (PolyAttribute attr : PolyAttribute.values()) {
                 String attrName = attr.toString();
+                String altName = PolyAttribute.altNames.get(attr);
                 iterator = shortValue.listIterator();
                 ArrayList<KQMLObject> attrValues = new ArrayList<KQMLObject>();
                 while (iterator.hasNext()) {
                     String key = iterator.next().toString();
-                    if (key.equalsIgnoreCase(attr.toString())) {
+                    if (key.equalsIgnoreCase(attrName) || key.equalsIgnoreCase(altName)) {
                         // look ahead
                         int nextIndex = iterator.nextIndex();
                         KQMLObject aValue = shortValue.get(nextIndex);
@@ -355,7 +377,9 @@ public class TermExtraction extends Extraction {
                             }
                         }
                         */
-                        attrValues.add(aValue);
+                        if (!attrValues.contains(aValue)) {
+                            attrValues.add(aValue);
+                        }
                         iterator.next();
                     }
                 }
@@ -418,29 +442,146 @@ public class TermExtraction extends Extraction {
 
         if (ExtractionFactory.getProperty("extractions.mode").equals("DRUM")) {
             attrs.add(xml_attribute("dbid", getDBTermIds()));
-            
             conts.add(xml_drumTerms());
         } 
+        if (ExtractionFactory.getProperty("extractions.mode").equals("CWMS")) {
+            conts.add(xml_grounding());
+        } 
 
+        conts.add(xml_equals());
         conts.add(xml_assocs());
         conts.add(xml_assocPoss());
         conts.add(xml_qualifiers());
         conts.add(xml_size());
         conts.add(xml_quantifier());
+        conts.add(xml_refset());
         conts.add(xml_scale());
         conts.add(xml_location());
         conts.add(xml_timex());
-        if (ontType.equalsIgnoreCase("ONT::NUMBER") || ontType.equalsIgnoreCase("ONT::NUMBER-UNIT"))
-            conts.add(xml_value());
+        conts.add(xml_value());
         conts.add(xml_unit());
         conts.add(xml_amount());
         conts.add(xml_quantity());
         if (ontType.equalsIgnoreCase("ONT::RATE"))
             conts.add(xml_rate());
+        conts.add(xml_timerange());
         // sequences of numbers
         conts.add(xml_valseq());
 
         return xml_element(exType, attrs, conts);
+    }
+    /**
+     * Returns a domain-specific (e.g., {@code drum-terms}) XML element containing a set of grounding information terms.
+     * 
+     */
+    protected String xml_grounding() {
+        List<String> conts = new ArrayList<String>();
+        for (KQMLList term : dsTerms) {
+            conts.add(xml_cwmsTerm(term));
+        }
+        return xml_element("grounding", null, conts);
+    }
+
+    /**
+     * Returns a {@code country} XML element containing grounding information for country names.
+     * <p>
+     * Attributes: {@code code}, {@code name}
+     * CAPITAL, REGION, SUBREGION, DEMONYM
+     */
+    protected String xml_cwmsTerm(KQMLList dsTerm) {
+        if (dsTerm == null)
+            return "";
+        String termType = pullTermHead(dsTerm).toLowerCase();
+        List<String> attrs = new ArrayList<String>();
+        // id (may be missing)
+        KQMLObject dbID = dsTerm.getKeywordArg(":ID");
+        if (dbID != null)
+            attrs.add(xml_attribute("id", normalizeDBID(dbID.toString())));
+        // official name
+        KQMLObject name = dsTerm.getKeywordArg(":NAME");
+        if (name != null)
+            attrs.add(xml_attribute("name", xml_escape(name.stringValue())));
+        // code (for countries)
+        KQMLObject code = dsTerm.getKeywordArg(":CODE");
+        if (code != null)
+            attrs.add(xml_attribute("code", xml_escape(code.stringValue())));
+        // country code (for capitals)
+        KQMLObject c_code = dsTerm.getKeywordArg(":COUNTRY");
+        if (c_code != null)
+            attrs.add(xml_attribute("country-code", xml_escape(c_code.stringValue())));
+        // regions, sub-regions and demonyms have :COUNTRIES
+        KQMLObject c_codes = dsTerm.getKeywordArg(":COUNTRIES");
+        if (c_codes != null) {
+            attrs.add(xml_attribute("country-codes", xml_escape(c_codes.stringValue())));
+        }
+        // status may be missing
+        KQMLObject status = dsTerm.getKeywordArg(":STATUS");
+        if (status != null)
+            attrs.add(xml_attribute("status", status.toString()));
+        // source
+        KQMLObject source = dsTerm.getKeywordArg(":SOURCE");
+        if (source != null)
+            attrs.add(xml_attribute("source", xml_escape(source.stringValue())));
+        // matches may be missing
+        KQMLObject matches = dsTerm.getKeywordArg(":MATCHES");
+        String matchedName = null;
+        if (matches != null) {
+            KQMLList firstMatch = (KQMLList) ((KQMLList) matches).get(0);
+            matchedName = firstMatch.getKeywordArg(":MATCHED").stringValue();
+            attrs.add(xml_attribute("matched-name", xml_escape(matchedName)));
+            // score may be missing
+            KQMLObject matchScore = firstMatch.getKeywordArg(":SCORE");
+            if (matchScore != null)
+                attrs.add(xml_attribute("match-score", matchScore.toString()));
+            // status may be missing; also, it may be a string rather than a token
+            KQMLObject matchStatus = firstMatch.getKeywordArg(":STATUS");
+            if (matchStatus != null) {
+                if (matchStatus instanceof KQMLString) {
+                    attrs.add(xml_attribute("status", matchStatus.stringValue()));                    
+                } else {
+                    attrs.add(xml_attribute("status", matchStatus.toString()));
+                }
+            }
+            // source
+            KQMLObject matchedSource = firstMatch.getKeywordArg(":SOURCE");
+            if (matchedSource != null)
+                attrs.add(xml_attribute("source", xml_escape(matchedSource.stringValue())));
+        }
+
+        return xml_element(termType, attrs, null);
+    }
+
+    /**
+     * Returns a {@code place} XML element containing grounding (geographic) information for place names.
+     * <p>
+     * Attributes: {@code id}, {@code source}
+     * 
+     */
+    @Deprecated
+    protected String xml_cwmsPlaceTerm(KQMLList dsTerm) {
+        if (dsTerm == null)
+            return "";
+
+        List<String> attrs = new ArrayList<String>();
+        KQMLObject dbID = dsTerm.getKeywordArg(":ID");
+        if (dbID != null)
+            attrs.add(xml_attribute("id", normalizeDBID(dbID.toString())));
+        // source
+        KQMLObject source = dsTerm.getKeywordArg(":SOURCE");
+        if (source != null)
+            attrs.add(xml_attribute("source", xml_escape(source.stringValue())));
+
+        return xml_element("place", attrs, null);
+    }
+
+    /**
+     * Equals (identified-as)
+     */
+    private String xml_equals() {
+        KQMLObject idAs = attributes.get(Attribute.ID_AS);
+        if (idAs == null) return "";
+        
+        return xml_elementWithID("equals", idAs.toString());
     }
 
     /**
@@ -514,20 +655,42 @@ public class TermExtraction extends Extraction {
      * Value expressions for numbers
      */
     private String xml_value() {
+        if (!(ontType.equalsIgnoreCase("ONT::NUMBER") || ontType.equalsIgnoreCase("ONT::NUMBER-UNIT"))) {
+            return "";
+        }
         // number with value
         KQMLObject value = attributes.get(Attribute.VALUE);
         if (value != null) 
              return xml_element("value", "", value.toString());
         // number greater than, less than, or between values
         List<String> conts = new ArrayList<String>();
+        List<String> attrs = new ArrayList<String>();
         KQMLObject min = attributes.get(Attribute.MIN);
         if (min != null)
             conts.add(xml_element("min", "", min.toString()));
         KQMLObject max = attributes.get(Attribute.MAX);
         if (max != null)
             conts.add(xml_element("max", "", max.toString()));
+        // number that is more or less than another
+        KQMLObject mod = attributes.get(Attribute.MOD);
+        if (mod != null){
+           if (isOntVar(mod.toString())) {
+               KQMLList modTerm = findTermByVar(mod.toString(), context);
+               if (modTerm != null) {
+                   KQMLObject modOntType = pullFullOntType(modTerm);
+                   String ontType = ontType(modOntType);
+                   // TODO: assert that this is ONT::QMODIFIER
+                   String ontWord = ontWord(modOntType);
+                   // TODO: assert that figureVar.equalsIgnoreCase(id)
+                   KQMLObject ground = modTerm.getKeywordArg(":GROUND");
+                   String groundVar = ground.toString();
+                   attrs.add(xml_attribute("mod", removePackage(ontWord)));
+                   attrs.add(xml_attribute("id", removePackage(ground.toString())));
+               }
+           }
+        }
         
-        return xml_element("value", null, conts);
+        return xml_element("value", attrs, conts);
     }
 
     /**
@@ -551,6 +714,7 @@ public class TermExtraction extends Extraction {
         Debug.debug("sTERM(" + value + ")");
         
         List<String> attrs = xml_commonAttributes();
+        
         attrs.add(xml_attribute("dbid", getDBTermIds()));
 
         List<String> conts = xml_commonContents();
@@ -650,10 +814,10 @@ public class TermExtraction extends Extraction {
         List<String> attrs = xml_commonAttributes();
 
         List<String> conts = xml_commonContents();
-        if (drumTerms.isEmpty()) {
+        if (dsTerms.isEmpty()) {
             conts.add(xml_element("mutation", "", "ONT::TRUE"));
         } else {
-            for (KQMLList drumTerm : drumTerms) {
+            for (KQMLList drumTerm : dsTerms) {
                 if (!pullTermHead(drumTerm).equalsIgnoreCase("MUTATION")) {
                     continue;
                 }
@@ -673,42 +837,13 @@ public class TermExtraction extends Extraction {
      * 
      * @return
      */
-    protected String xml_drumTerm(KQMLList drumTerm) {
-        if (drumTerm == null)
+    protected String xml_drumTerm(KQMLList dsTerm) {
+        if (dsTerm == null)
             return "";
         
-        List<String> attrs = new ArrayList<String>();
-        // TODO: find out if other information might be useful
-        KQMLObject dbID = drumTerm.getKeywordArg(":ID");
-        if (dbID != null) 
-            attrs.add(xml_attribute("dbid", normalizeDBID(dbID.toString())));
-        // score may be missing
-        KQMLObject matchScore = drumTerm.getKeywordArg(":SCORE");
-        if (matchScore != null)
-            attrs.add(xml_attribute("match-score", matchScore.toString()));
-        // name may be missing
-        KQMLObject nameObj = drumTerm.getKeywordArg(":NAME");
-        if (nameObj != null)
-            attrs.add(xml_attribute("name", xml_escape(nameObj.stringValue())));
-        // matches may be missing
-        KQMLObject matches = drumTerm.getKeywordArg(":MATCHES");
-        String matchedName = null;
-        if (matches != null) {
-            KQMLObject firstMatch = ((KQMLList) matches).get(0);
-            matchedName = ((KQMLList) firstMatch).getKeywordArg(":MATCHED").stringValue();
-            attrs.add(xml_attribute("matched-name", xml_escape(matchedName)));
-        }
-        
-        List<String> conts = new ArrayList<String>();
-        // ont-types must be present!
-        conts.add(xml_drumTermOntTypes((KQMLList) drumTerm.getKeywordArg(":ONT-TYPES")));
-        // dbxrefs may be missing
-        conts.add(xml_drumTermXrefs((KQMLList) drumTerm.getKeywordArg(":DBXREFS")));
-        // species may be missing
-        KQMLObject species = drumTerm.getKeywordArg(":SPECIES");
-        if (species != null)
-            conts.add(xml_element("species", "", xml_escape(species.stringValue())));
-        conts.add(xml_famMembers(drumTerm));
+        List<String> attrs = xml_drumTerm_attributes(dsTerm);     
+        List<String> conts = xml_drumTerm_content(dsTerm);
+        conts.add(xml_famMembers(dsTerm));
         
         return xml_element("drum-term", attrs, conts);                
     }
@@ -929,6 +1064,31 @@ public class TermExtraction extends Extraction {
         }
     }
 
+    /**
+     * XML element for refset.
+     * 
+     * @return
+     */
+    private String xml_refset() {
+        KQMLObject quan = attributes.get(Attribute.REFSET);
+        if (quan == null) 
+            return "";
+        
+        String var = quan.toString();
+        if (isOntVar(var)) {
+            if (ekbFindExtraction(var) != null) { 
+                return xml_elementWithID("refset", var);
+            } else { // we need to define the item here
+                return xml_lfTerm("refset", var);
+            }
+        } else if (quan instanceof KQMLToken) { // likely an ont type
+            return xml_element("refset", xml_attribute("type", var), null);
+        } else { // should not happen!
+            Debug.warn("unexpected " + Attribute.REFSET + " value: " + var);
+            return "";
+        }
+    }
+
 
     /**
      * Returns a {@code <features>} XML element representing the term features,
@@ -965,7 +1125,15 @@ public class TermExtraction extends Extraction {
         List<String> conts = new ArrayList<String>();
         KQMLObject dow = attributes.get(Attribute.DOW);
         if (dow != null) {
-            conts.add(xml_element("dow", null, removePackage(ontWord(dow))));
+            String var = dow.toString();
+            Extraction ekbTerm = ekbFindExtraction(var);
+            KQMLList term = (ekbTerm != null) ? ekbTerm.getValue() : findTermByVar(var, context);
+            if (term != null) {
+                conts.add(xml_element("dow", null, removePackage(ontWord(pullFullOntType(term)))));
+            } else { // something's wrong
+                conts.add(xml_lfTerm("from-time", var));
+            }
+
         }
         KQMLObject day = attributes.get(Attribute.DAY);
         if (day != null) {
@@ -986,8 +1154,51 @@ public class TermExtraction extends Extraction {
         if (conts.isEmpty()) 
             return "";
         
+        KQMLObject phase = attributes.get(Attribute.PHASE);
+        if (phase != null) {
+            String mod = removePackage(ontWord(phase));
+            if (!mod.isEmpty()) {
+                attrs.add(xml_attribute("mod", mod));
+            }
+        }
+
         attrs.add(xml_attribute("type","DATE"));
         return xml_element("timex", attrs, conts);
+    }
+
+    /**
+     * Time expressions for time ranges
+     * @return
+     */
+    private String xml_timerange() {
+        if (! ontType.equalsIgnoreCase("ONT::TIME-RANGE")) {
+            return "";
+        }
+
+        //List<String> attrs = new ArrayList<String>();
+        List<String> conts = new ArrayList<String>();
+        KQMLObject from = attributes.get(Attribute.FROM);
+        if (from != null) {
+            String var = from.toString();
+            if (ekbFindExtraction(var) != null) {
+                conts.add(xml_elementWithID("from-time", var, null));
+            } else { // we need to define the item here
+                conts.add(xml_lfTerm("from-time", var));
+            }
+        }
+        KQMLObject to = attributes.get(Attribute.TO);
+        if (to != null) {
+            String var = to.toString();
+            if (ekbFindExtraction(var) != null) {
+                conts.add(xml_elementWithID("to-time", var, null));
+            } else { // we need to define the item here
+                conts.add(xml_lfTerm("to-time", var));
+            }
+        }
+
+        //attrs.add(xml_attribute("type","DURATION"));
+        //return xml_element("timex", attrs, conts);
+        return join("",conts);
     }
 
     /**
@@ -1024,8 +1235,11 @@ public class TermExtraction extends Extraction {
     // TODO: multiple locations (make it poly-attribute)
     private String xml_location() {
         KQMLObject loc = attributes.get(Attribute.LOC);
-        if (loc == null) 
-            return "";
+        if (loc == null) {
+            loc = attributes.get(Attribute.LOCATION);
+            if (loc == null)
+                return "";
+        }
 
         List<String> attrs = new ArrayList<String>();
         KQMLObject modType = attributes.get(Attribute.LOCMOD);
@@ -1049,7 +1263,6 @@ public class TermExtraction extends Extraction {
         }
         return result;
     }
-    
     
     /**
      * Creates explicit site (eg, domain) property for the term.
@@ -1201,10 +1414,10 @@ public class TermExtraction extends Extraction {
      * @return
      */
     private String xml_residue() {
-        if (drumTerms.isEmpty()) {
+        if (dsTerms.isEmpty()) {
             return "";
         }
-        for (KQMLList drumTerm : drumTerms) {
+        for (KQMLList drumTerm : dsTerms) {
             // we only look for the first AA-SITE term; there shouldn't be more than one!
             if (pullTermHead(drumTerm).equalsIgnoreCase("AA-SITE")) {
                 return xml_AASite(drumTerm);
@@ -1219,7 +1432,7 @@ public class TermExtraction extends Extraction {
      */
     private String xml_inevent() {
         ArrayList<KQMLObject> inEvents = polyAttributes.get(PolyAttribute.INEVENT);
-        Debug.warn("poly :INEVENT of " + id + " =  " + inEvents);
+        // Debug.warn("poly :INEVENT of " + id + " =  " + inEvents);
         if ((inEvents == null) || inEvents.isEmpty()) 
             return "";
         

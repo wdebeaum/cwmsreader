@@ -2,7 +2,7 @@
 
 MODULE=Spaceman
 MAIN=$(MODULE).js
-SRCS=$(MAIN) set-ops.js
+SRCS=$(MAIN) set-ops.js utils.js maps.js
 
 CONFIGDIR=../config
 include $(CONFIGDIR)/javascript/prog.mk

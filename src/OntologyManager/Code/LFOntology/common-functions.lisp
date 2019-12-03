@@ -1,3 +1,4 @@
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 ;; Functions used by multiple modules dealing with LF ontology and features
@@ -249,20 +250,22 @@
    (t
     (let ((type (merge-types (feature-list-type child) (feature-list-type parent) :two-way two-way :lfontology lfontology))
 	  )
-      (when (null type)
-	;;	(break)
-	(Error 
+      (if (null type)
+	  (progn
+	    (format *error-output* "~%inconsistent-feat-spec in merge-typed-feature-lists: ~S and ~S" child parent)
+	    (make-feature-list ))
+	#|(Error 
 	 (make-system-condition 'inconsistent-feat-spec
 			   :format-control "Incompatible sem types in ~S and ~S" 
 			   :format-arguments (list child parent)))
-	)
-      (make-feature-list
-       :type type
-       :features (add-sem-feature-lists (feature-list-features child) (feature-list-features parent) 
-					lfontology :feattable feattable :two-way two-way)
-       :defaults (merge-in-defaults (feature-list-defaults child) (feature-list-defaults parent))       
-       ))
-    )))
+	)|#
+	  (make-feature-list
+	   :type type
+	   :features (add-sem-feature-lists (feature-list-features child) (feature-list-features parent) 
+					    lfontology :feattable feattable :two-way two-way)
+	   :defaults (merge-in-defaults (feature-list-defaults child) (feature-list-defaults parent))       
+	   ))
+      ))))
 
 (defun add-sem-feature-lists (childlist parentlist lfontology &key (feattable nil) (two-way nil))
   (let ((result parentlist))
@@ -318,7 +321,10 @@
 
 ;; takes a typed feature list in the format type <feature list>
 ;; and makes it into a structure
-(defun make-typed-sem (tsem)
+;; Note there are two input forms: one is (<type> (<feat> <val>)*)
+;;  and the other is (<type> :required (<feat> <val>)* :optional (<feat> <val>)*)
+;;p  if RENAME-VARS is non null, we generte a new var name to make sure its unique
+(defun make-typed-sem (tsem &optional rename-vars)
   (when tsem
     (let* ((type (make-var-unique (car tsem)))
 	   (flist (cdr tsem))
@@ -332,19 +338,32 @@
       (setq required flist))
     (make-feature-list
      :type type
-     :features required
-     :defaults default)
+     :features (if rename-vars (mapcar #'(lambda (x)
+					   (list (car x) (make-var-unique (cadr x))))
+				       required)
+		   required)
+     :defaults (if rename-vars
+		   (mapcar #'(lambda (x)
+			       (list (car x) (make-var-unique (cadr x))))
+			   default)
+		   default)
+     )
     )))
 
 (defun make-var-unique (class)
-  (if (and (consp class)
-	   (eq (car class) '?))
-      (list* '? (make-name-unique (cadr class)) (cddr class))
-      class))
+  (cond ((and (consp class)
+	      (eq (car class) '?))
+	 (list* '? (make-name-unique (cadr class)) (cddr class)))
+	((is-variable-name class)
+	 (make-name-unique class))
+	(t
+	 class)))
 
 (defun make-name-unique (id)
-  (gensym (symbol-name id)))
-  
+  (intern (symbol-name (gensym (symbol-name id))) *ont-package*))
+
+(defun strip-first-char (id)
+  (intern (string-trim '(#\?) (symbol-name id))))
 
 ;; takes an untyped feature list in the format type <feature list>
 ;; and makes it into a structure with variable type

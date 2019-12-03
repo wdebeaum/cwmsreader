@@ -11,10 +11,51 @@
 
 (in-package :cwmsagent)
 
-(dagent::add-state 'evaluate-handling
+
+(dagent::add-state 'top-level
     (dagent::state :action nil 
 		   :transitions
-		       (list
+		   (list
+
+		    ;;  NEW RULES HERE
+		    (dagent::transition
+			 :description "basic proposal to  adopt a task"
+			 :pattern '((ADOPT :id ?!id :what ?!what :as ?!as :context ?context)
+				    (Identify-task :what ?!what :as ?!as :context ?context :result ?result)
+				    -explicit-adopt-a-task1>
+				    
+				      :continuation analyse-situation1
+				      ))
+				    )
+			 :destination 'top-level)
+
+		    )
+		   ))
+
+;;  ANALYSE SITUATION
+
+(dagent::add-state 'analyse-situation1
+    (dagent::state :action nil 
+		   :transitions
+		   (list
+		    (dagent::transition
+		     :description "what next?"
+		     :pattern '((WHAT-NEXT)
+				-anal-sit1>
+				(decide-what-to-do (analyze-situation1)))
+		     :destination 'analyse-sitation2)
+		     ;; user initiative steps would be matched here
+		    )))
+
+(defun analyze-situation1 nil
+  )
+
+(dagent::add-state 'old-rules 
+		   (dagent::state :action nil 
+				  :transitions
+				  (list
+
+		    ;; OLD SYSTEM RULES HERE
 			(dagent::transition
 			 :description "top level CONDITIONAL ASK-WH -- What happens to the price of wheat if we cut th amount of fertilzer in half"
 			 :pattern '((REQUEST XX EVALUATE :ps-id ASK-WH :id ?!id :what ?!what :query ?!query :as ?!as)
@@ -143,26 +184,7 @@
 				    )
 			 :destination 'dagent::segmentend)
 
-			(dagent::transition
-			 :description "goal to explain/understand some situation, event of process"
-			 :pattern '((REQUEST XX EVALUATE :ps-id ADOPT :id ?!id :what ?!what :as ?!as)
-				    ((? x1 ont::reln ont::event ont::epi) ?!what
-				             ONT::UNDERSTAND :formal ?!param-id :extent ?extent1 :time ?time1 :location ?loc1)
-				    (?spec ?!param-id ONT::SITUATION-ROOT :time ?time2 :location ?loc2 :extent ?extent2)
-				    -evaluate-analyze-situation>
-				    (gen-symbol G ?newid)
-				    (dagent::set-result
-				     (new-goal (ONT::RELN ?newid :instance-of ANALYZE-SITUATION
-								:event ?!param-id
-								:extent1 ?extent1
-								:extent2 ?extent2
-								:time1 ?time1
-								:time2 ?time2
-								:loc1 ?loc1
-								:loc2 ?loc2)
-				      ))
-				    )
-			 :destination 'dagent::segmentend)
+			
 
 			(dagent::transition
 			 :description "e.g., here's a paper"
@@ -194,7 +216,7 @@
 				    -show-information-related-to-concept
 				    (gen-symbol G ?newid)
 				    (dagent::set-result
-				     (new-goal (ONT::RELN ?newid :instance-of GET-RELATED-INFO
+				     (add-subgoal (ONT::RELN ?newid :instance-of GET-RELATED-INFO
 							  :concept ?topic-type
 							  )
 				      ))
@@ -204,7 +226,7 @@
 			(dagent::transition
 			 :description "e.g.,Add the fact that the attacks caused the lockdown"
 			 :pattern '((REQUEST XX EVALUATE :ps-id ADOPT :id ?!id :what ?!what :as ?!as)
-				    (?spec2 ?!what ONT::ADD-INCLUDE :affected ?!prop)
+				    (?spec2 ?!what (? x ONT::ADD-INCLUDE ONT::INCREASE) :affected ?!prop)
 				    (ont::the ?!prop ONT::FACT :formal ?!param-id)
 				    (?spec  ?!param-id ONT::CAUSE :factor ?!agent :outcome ?!effect)
 				    ((? spec1 ont::THE ont::the-set ont::event) ?!agent ?agent-type)
@@ -212,10 +234,29 @@
 				    -add-causal-link
 				    (gen-symbol G ?newid)
 				    (dagent::set-result
-				     (new-goal (ONT::RELN ?newid :instance-of ADD-LINK
+				     (add-subgoal (ONT::RELN ?newid :instance-of ADD-LINK
 							  :cause ?agent-type
 							  :effect ?effect-type
 							  )
+				      ))
+				    )
+			 :destination 'dagent::segmentend)
+
+			(dagent::transition
+			 :description "e.g.,Add the fact that the attacks caused the lockdown"
+			 :pattern '((REQUEST XX EVALUATE :ps-id ADOPT :id ?!id :what ?!what :as ?!as)
+				    (?spec2 ?!what (? x ONT::ADD-INCLUDE ONT::INCREASE) :affected ?!prop)
+				    (ont::the ?!prop ONT::FACT :formal ?!param-id)
+				    (?spec ?!param-id ONT::INHIBIT :agent ?!agent :affected ?!effect)
+				    ((? spec1 ont::THE ont::the-set ont::event) ?!agent ?agent-type)
+				    ((? spec3 ont::THE ont::the-set ont::event) ?!effect ?effect-type)
+				    -add-causal-link2>
+				    (gen-symbol G ?newid)
+				    (dagent::set-result
+				     (add-subgoal (ONT::RELN ?newid :instance-of ADD-LINK
+							     :cause ?agent-type
+							     :effect ?effect-type
+							     )
 				      ))
 				    )
 			 :destination 'dagent::segmentend)
@@ -275,6 +316,8 @@
   (case (car act)
     (do-planning
 	(apply 'do-planning (cdr act)))
+    (decide-what-to-do
+     (eval (cadr act)))
     (gen-symbol
      (im::match-vals nil (gen-symbol (second act)) (third act)))
     (validate-answer

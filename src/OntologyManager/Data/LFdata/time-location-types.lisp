@@ -12,14 +12,15 @@
 ; high-level type for spatial locations
 ; a relation between an object (figure) to another object (ground) by a spatial relation, possible abstract
 (define-type ont::position-reln
- :parent ont::abstract-object
+ :parent ont::relation
  :comment "Spatial relations that locate one object (the figure) in terms of another object (the ground), which often is implicit"
  ;; situations can be spatially located, e.g. meetings, riots, parties
  ;; so can abstr-obj: the idea in the document; the name on the envelope; the man at the party
  :arguments (;(:ESSENTIAL ONT::OF ((? of F::Phys-obj F::Situation f::abstr-obj)))
 	     ;(:ESSENTIAL ONT::val ((? val F::Phys-obj F::Situation f::abstr-obj)))
 	     (:ESSENTIAL ONT::FIGURE ((? fig F::Phys-obj F::Situation f::abstr-obj)))
-	     (:ESSENTIAL ONT::GROUND ((? grd F::Phys-obj F::Situation f::abstr-obj)) (f::type (? !t ONT::TIME-MEASURE-SCALE))
+	     (:ESSENTIAL ONT::GROUND ((? grd F::Phys-obj F::Situation f::abstr-obj)
+				      (f::scale (? !sc ONT::TIME-MEASURE-SCALE)))
              ))
  )
 
@@ -43,11 +44,22 @@
 (define-type ont::at-loc
     :comment "prototypical locating of a FIGURE wrt a point-like GROUND"
     :parent ont::position-as-point-reln
+    :arguments ((:ESSENTIAL ONT::GROUND ((? val f::phys-obj f::abstr-obj f::situation) (f::tangible +)
+					 (f::type (? typ ont::phys-object ont::tangible-abstract-object ont::event-type))
+					 (f::scale (? !t ONT::TIME-MEASURE-SCALE ONT::RATE-SCALE ONT::MONEY-SCALE ONT::NUMBER-SCALE)) ; excludes "at four"
+				       )))
     )
 
+(define-type ont::loc-where-rel
+    :comment "relative clause relations that could be at-loc or in-loc, e.g., a place where it never rains; the city where I live"
+    :parent ont::position-as-point-reln
+    :arguments ((:ESSENTIAL ONT::FIGURE ((? xx f::phys-obj f::abstr-obj)  (f::tangible +)
+						      (f::type (? tt ont::location ont::mental-construction)))))
+    )
+ 
 ; figure is viewed as a point and related to ground by (abstract) containment
 (define-type ont::pos-wrt-containment-reln
-    :comment "locating an object (typically rthe FIGURE) within an extended object (typically the GROUND)"
+    :comment "locating an object (typically the FIGURE) within an extended object (typically the GROUND)"
     :parent ont::position-reln
     )
 
@@ -59,6 +71,15 @@
 				       (f::intentional -) (f::container +) ; containers include corner and pathway
 				       )))
   )
+
+#|
+(define-type ont::in-loc-rel
+    :parent ont::in-loc
+    :comment "FIGURE is part of the GROUND"
+  :arguments ((:ESSENTIAL ONT::FIGURE (f::abstr-obj (f::tangible +)
+						      (f::type ont::mental-construction))))
+  )
+|#
 
 (define-type ont::contain-reln
     :comment "a kind of Inverse of IN-LOC, but can't be used as a result location"
@@ -74,6 +95,7 @@
   :arguments ((:ESSENTIAL ONT::GROUND ((? val f::phys-obj) (f::intentional -)
 				       (f::container +)  ;; having container + causes problems with things like "pull the plug out of the wall"
 				       )))
+  :wordnet-sense-keys ("outside%4:02:00" "outside%4:02:01")
   )
 #||
 ; out (of), outside (of)
@@ -81,6 +103,7 @@
   :parent ont::outside
   )||#
 
+#|
 (define-type ont::delimit-reln
     :comment "the FIGURE has a value in a rnage that is delimited by the GROUND, e.g., within five dollars of the estimate, within five miles of starbucks"
   :parent ont::pos-wrt-containment-reln
@@ -88,6 +111,7 @@
 	      (:ESSENTIAL ONT::GROUND ((? val F::phys-obj f::abstr-obj)))
 	      )
   )
+|#
 
 					; figure is spatially related to a group of objects (the ground)
 (define-type ont::complex-ground-reln
@@ -99,6 +123,7 @@
 ; between, in between
 (define-type ont::between
   :parent ont::complex-ground-reln
+  :wordnet-sense-keys ("between%4:02:00" "between%4:02:03")
   )
 
 ; figure is within objects comprising the ground
@@ -121,12 +146,13 @@
 ; close (to), nearby, by, thereabouts, near, around
 (define-type ont::near-reln
   :parent ont::proximate-reln
+  :wordnet-sense-keys ("nearby%4:02:00")
   )
 
 ; figure is adjacent to ground
 ; adjacent (to), next (to), alongside (of), beside
 (define-type ont::adjacent
-  :wordnet-sense-keys ("adjacent%5:00:00:close:01")
+  :wordnet-sense-keys ("subjacent%3:00:00::" "adjacent%5:00:00:close:01")
   :parent ont::near-reln
   :arguments ((:essential ONT::FIGURE ) ;((? of1  f::phys-obj f::abstr-obj)))
 	      (:ESSENTIAL ONT::GROUND ((? grd F::Phys-obj)))
@@ -135,13 +161,15 @@
   )
 
 ; figure is large distance on the scale
-(define-type ont::distal-reln
+#|(define-type ont::distal-reln
   :parent ont::pos-distance
- )
+ )|#
 
 ; far
 (define-type ont::far-reln
-  :parent ont::distal-reln
+  ;:parent ont::distal-reln
+  :parent ont::pos-distance
+  :wordnet-sense-keys ("far%4:02:00")
   )
 
 ; figure has same location as ground
@@ -160,12 +188,14 @@
 ; here
 (define-type ont::here
   :parent ont::pos-wrt-speaker-reln
+  :wordnet-sense-keys ("here%4:02:00" "here%4:02:02" "here%4:02:01")
   )
 
 ; figure not associated w/ loc of speaker
 ; there
 (define-type ont::there
   :parent ont::pos-wrt-speaker-reln
+  :wordnet-sense-keys ("there%4:02:00" "there%4:02:01")
   )
 #||
 ; figure related by directon from ground
@@ -179,7 +209,8 @@
 ; figure is related by inherent orientation of ground
 (define-type ont::oriented-loc-reln
     :comment "FIGURE is located by a directional relationship with the GROUND"
-    :arguments ((:ESSENTIAL ONT::GROUND ((? grd F::Phys-obj f::abstr-obj)) (f::type (? !t ONT::TIME-MEASURE-SCALE))))
+    :arguments ((:ESSENTIAL ONT::GROUND ((? grd F::Phys-obj f::abstr-obj)
+					 (f::type (? !t ONT::TIME-MEASURE-SCALE)))))
     :parent ont::position-as-point-reln
     )
 
@@ -212,6 +243,7 @@
 (define-type ont::above
      :comment "FIGURE is higher on some vertical scale than the GROUND"
      :parent ont::directional-vert
+     :wordnet-sense-keys ("above%4:02:01")
   )
 
 ; figure is above (and translated) from ground
@@ -219,12 +251,14 @@
 (define-type ont::up
     :comment "FIGURE is higher on some vertical scale than the GROUND"
     :parent ont::directional-vert
+    :wordnet-sense-keys ("up%4:02:00")
     )
 
 (define-type ont::orients-to
     :parent ont::oriented-loc-reln
     :comment "FIGURE is located by an object defined by an orientation wrt an object. e.g., to the east, to the back"
-  :arguments ((:essential ONT::GROUND ((? of1  f::phys-obj f::abstr-obj) (f::type (? t ONT::CARDINAL-POINT ONT::object-dependent-location)))))
+    :arguments ((:essential ONT::FIGURE (f::PHYS-OBJ) (F::spatial-abstraction (? spa F::line F::strip)))
+		(:essential ONT::GROUND ((? of1  f::phys-obj f::abstr-obj) (f::type (? t ONT::CARDINAL-POINT ONT::object-dependent-location)))))
   )
 
 ; figure is on an object
@@ -235,18 +269,21 @@
 ; figure is not on an object
 (define-type ont::off
   :parent ont::oriented-loc-reln
+  :wordnet-sense-keys ("off%4:02:03" "off%4:02:04")
   )
 
 ; figure is in front of the ground
 ; in front (of), ahead (of)
 (define-type ont::front
   :parent ont::oriented-loc-reln
+  :wordnet-sense-keys ("front%3:00:00")
   )
 
 ; figure is behind the ground
 ; in back (of), behind
-(define-type ont::back
+(define-type ont::back-of
   :parent ont::oriented-loc-reln
+  :wordnet-sense-keys ("behind%4:02:00")
   )
 
 ; figure is right of the ground
@@ -270,21 +307,25 @@
 ; north (of), northward
 (define-type ont::north-reln
   :parent ont::navigational-reln
+  :wordnet-sense-keys ("north%4:02:00")
   )
 
 ; east (of/from), eastward
 (define-type ont::east-reln
   :parent ont::navigational-reln
+  :wordnet-sense-keys ("east%4:02:00")
   )
 
 ; south (of/from), southward
 (define-type ont::south-reln
   :parent ont::navigational-reln
+  :wordnet-sense-keys ("south%4:02:00")
   )
 
 ; west (of/from), westward
 (define-type ont::west-reln
   :parent ont::navigational-reln
+  :wordnet-sense-keys ("west%4:02:00")
   )
 ; *********************************************
 ;
@@ -316,6 +357,7 @@
 (define-type ont::across
     :comment "FIGURE is a slice through the GROUND from one side to the other. Conceptually on the GROUND"
     :parent ont::position-wrt-area-reln
+    :wordnet-sense-keys ("across%4:02:00" "across%4:02:01")
     )
 
 (define-type ont::pos-as-opposite
@@ -326,11 +368,13 @@
 (define-type ont::around
     :comment "FIGURE is an area surrounding the boundary of the GROUND, or distrubuted over the GROUND"
     :parent ont::position-wrt-area-reln
+    :wordnet-sense-keys ("around%4:02:00" "around%4:02:05" "around%4:02:06" "around%4:02:07")
     )
 
 (define-type ONT::through
     :parent ONT::position-wrt-area-reln
     :comment "FIGURE crosses the GROUND, conceptually IN the ground" 
+    :wordnet-sense-keys ("through%4:02:01" "through%4:02:02")
     )
 
 
@@ -417,11 +461,13 @@
 ; upstairs
 (define-type ont::floor-above
  :parent ont::floor-rel
+  :wordnet-sense-keys ("upstairs%3:00:00::" "upstair%3:00:00::")
  )
 
 ; downstairs
 (define-type ont::floor-below
  :parent ont::floor-rel
+  :wordnet-sense-keys ("downstairs%3:00:00::" "downstair%3:00:00::")
  )
 
 ; figure relates to proximity to city center
@@ -432,11 +478,13 @@
 ; uptown
 (define-type ont::uptown
  :parent ont::city-rel
+ :wordnet-sense-keys ("uptown%4:02:00")
  )
 
 ; downtown
 (define-type ont::downtown
  :parent ont::city-rel
+ :wordnet-sense-keys ("downtown%4:02:00")
  )
 
 #||
@@ -455,8 +503,7 @@
 (define-type ont::path ; for now to avoid conflict w/ old ont::trajectory
  :parent ont::predicate
  :sem (F::abstr-obj)
- ;; situations can be spatially located, e.g. meetings, riots, parties
- ;; so can abstr-obj: the idea in the document; the name on the envelope; the man at the party
+ :comment "constrains the location of an object undergoing motion"
  :arguments ((:ESSENTIAL ONT::FIGURE ((? of F::Phys-obj F::Situation f::abstr-obj)))
 	     (:ESSENTIAL ONT::GROUND ((? val F::Phys-obj F::Situation f::abstr-obj)))
              )
@@ -488,12 +535,13 @@
  )
 
 (define-type ONT::resulting-state
- :parent ONT::goal-reln
- :arguments ((:ESSENTIAL ONT::FIGURE )
-			 ;(F::Situation (f::aspect f::dynamic) (f::type ont::change)))
-             (:REQUIRED ONT::GROUND ((? t F::Abstr-obj F::situation)))
-             )
- )
+    :comment "the RESULT of an event is a new state of the world: e.g., He drove him to despair"
+    :parent ONT::goal-reln
+    :arguments ((:ESSENTIAL ONT::FIGURE )
+					;(F::Situation (f::aspect f::dynamic) (f::type ont::change)))
+		(:REQUIRED ONT::GROUND ((? t F::Abstr-obj F::situation)))
+		)
+    )
 
 ; trajectory ends at the ground
 ; to
@@ -517,7 +565,7 @@
 			   )))
     )
 
-; relates a trajectory/evet to its beginning/source
+; relates a trajectory/change event to its beginning/source/initial state
 (define-type ont::source-reln
  :parent ont::path
  )
@@ -526,12 +574,18 @@
 ; from
 
 (define-type ont::from
-  :parent ont::source-reln
-  )
+    :comment "This is the initial state of a change - not an initial location, which is FROM-LOC"
+    :parent ont::source-reln
+    )
+
 
 (define-type ont::source-as-loc
+    :comment "a relation that indicates where an object was in the past: the person from Italy"
  :parent ont::from
- :arguments ((:ESSENTIAL ONT::FIGURE (F::phys-obj)))
+ :arguments ((:ESSENTIAL ONT::FIGURE (F::phys-obj (F::mobility F::movable)))
+	     (:ESSENTIAL ONT::GROUND (F::phys-obj
+				      ;;(F::mobility F::movable)) ; exclude "... arrive in country X from country Y"   Can't do this as it also eliminates the usual cases, doesn't it?  JFA 7/19
+				      )))
  )
 
 #| ; now this is :RESULT
@@ -608,14 +662,15 @@
  )||#
 
 (define-type ONT::from-loc
- :parent ONT::source-reln
+    :parent ONT::source-reln
+    :comment "This indicates an initial location of an object"
  :arguments (;(:ESSENTIAL ONT::FIGURE ( F::situation (F::type ont::motion)))
 	     ;(:ESSENTIAL ONT::GROUND (F::Phys-obj (f::spatial-abstraction (? sa f::spatial-point))))
 
 	     ; copied from to-loc
-	     (:ESSENTIAL ONT::FIGURE ((? f F::PHYS-OBJ F::abstr-obj))); (F::situation (f::type ont::event-of-change)))   ; "I walked to the store" FIGURE should point to "I", not "walked"
+	     (:ESSENTIAL ONT::FIGURE ((? f F::PHYS-OBJ F::abstr-obj F::situation)))    ;; need to allow situation here as it can modoify events as well as objects in RESULT expressions
 	     (:ESSENTIAL ONT::GROUND ((? t F::Phys-obj F::abstr-obj) (f::spatial-abstraction ?!sa)
-					;(F::form F::geographical-object)
+				     ;; (F::mobility F::movable) ; exclude "... arrive in country X from country Y"  JFA I removed the movable constraint to the figure 
 				      ) )  ; spatial-abstraction is not enough: many things have spatial-abstraction, e.g., a frog.  Another possibility is (F::object-function F::spatial-object)
 
 	     )
@@ -624,31 +679,26 @@
 ; I moved from the chair to the sofa.  not geographic-object (gound)
 ; transmit the signal: signal is abstr-obj (figure)
 (define-type ONT::to-loc
-    :comment "the generic goal role: might be a physical object (as possessor) or a resulting state"
- :parent ONT::goal-reln
- :arguments (;(:ESSENTIAL ONT::OF (F::situation (f::type ont::event-of-change)))
-	     ;(:ESSENTIAL ONT::VAL ((? t F::Phys-obj F::abstr-obj)))
-	     (:ESSENTIAL ONT::FIGURE ((? f F::PHYS-OBJ F::abstr-obj))); (F::situation (f::type ont::event-of-change)))   ; "I walked to the store" FIGURE should point to "I", not "walked"
-	     (:ESSENTIAL ONT::GROUND ((? t F::Phys-obj F::abstr-obj) (f::spatial-abstraction ?!sa)
+    :comment "the ending location of an object undergoing motion - including abstract move"
+    :parent ONT::goal-reln
+    :arguments ((:ESSENTIAL ONT::FIGURE ((? f F::PHYS-OBJ F::abstr-obj) (F::mobility F::movable) ))
+		(:ESSENTIAL ONT::GROUND ((? t F::Phys-obj F::abstr-obj) (f::spatial-abstraction ?!sa)
 					;(F::form F::geographical-object)
-				      ) )  ; spatial-abstraction is not enough: many things have spatial-abstraction, e.g., a frog.  Another possibility is (F::object-function F::spatial-object)
+					 ) )  ; spatial-abstraction is not enough: many things have spatial-abstraction, e.g., a frog.  Another possibility is (F::object-function F::spatial-object)
 	     )
  )
 
-;; 4 2010 -- no longer needed?
-;; pan camera to 45 degrees
-;(define-type ONT::to-loc-degrees
-; :parent ONT::predicate
-; :arguments ((:ESSENTIAL ONT::OF (F::Situation (F::trajectory +)))
-;             (:ESSENTIAL ONT::VAL (F::Abstr-obj (f::measure-function f::value)))
-;             )
-; )
+(define-type ONT::to-prior-loc
+    :comment "to a location wheere the object was previously"
+    :parent ONT::to-loc
+    :wordnet-sense-keys ("back%4:02:05" "back%4:02:04")
+ )
 
-;; for to-phrases that modify vehicles, e.g. the plane to rochester
+;; for to-phrases that modify trajectory related nouns, e.g., paths, and vehicles, e.g. the plane to rochester
 (define-type ONT::destination-loc
  :parent ONT::predicate
  :arguments ((:ESSENTIAL ONT::GROUND (F::Phys-obj (f::spatial-abstraction (? sa f::spatial-point))))
-	     (:ESSENTIAL ont::FIGURE  (f::phys-obj (F::Object-Function F::vehicle) (F::MOBILITY F::Self-moving) (F::container +)))
+	     (:ESSENTIAL ont::FIGURE  (f::phys-obj (f::trajectory +))) ;;(F::Object-Function F::vehicle) (F::MOBILITY F::Self-moving) (F::container +)))
 	     )
  )
 
@@ -723,11 +773,13 @@
 
 (define-type ont::clockwise
     :parent ont::direction-rotation
+  :wordnet-sense-keys ("clockwise%3:00:00::")
     )
 
 ; counterclockwise
 (define-type ont::counterclockwise
     :parent ont::direction-rotation
+  :wordnet-sense-keys ("counterclockwise%3:00:00::" "anticlockwise%3:00:00::" "contraclockwise%3:00:00::")
     )
 
 (define-type ont::direction-wrt-verticality
@@ -765,11 +817,13 @@
 (define-type ont::direction-in
     :comment "direction involving moving into some object (the GROUND)"
     :parent ont::direction-wrt-containment
+    :wordnet-sense-keys ("in%4:02:01")
     )
 
 (define-type ont::direction-out
     :comment "direction involving moving into some object (the GROUND)"
     :parent ont::direction-wrt-containment
+    :wordnet-sense-keys ("out%4:02:02" "out%4:02:04")
     )
 
 ;; north, south, east, west
@@ -783,6 +837,7 @@
  :parent ONT::PREDICATE
  :arguments ((:ESSENTIAL ONT::FIGURE ((? t F::Phys-obj F::Situation)))
              )
+ :wordnet-sense-keys ("farther%4:02:00" "further%4:02:02")
  )
 
 (define-type ONT::extent-predicate
@@ -790,7 +845,7 @@
  :sem  (F::abstr-obj)
  :arguments (;(:ESSENTIAL ONT::FIGURE (F::Situation))
 	     (:ESSENTIAL ONT::FIGURE (F::Situation (f::type ont::change-magnitude)))
-;	     (:ESSENTIAL ONT::GROUND (F::abstr-obj (F::scale ont::length)))
+;	     (:ESSENTIAL ONT::GROUND (F::abstr-obj (F::scale ont::length-scale)))
 ;	     (:ESSENTIAL ONT::GROUND (F::abstr-obj))  ; no scale (e.g., increase by three dogs)
 	     (:ESSENTIAL ONT::GROUND (F::abstr-obj (F::scale ?!sc)))  ; put scale back for now
              )
@@ -800,7 +855,7 @@
 (define-type ONT::spatial-distance-rel
  :parent ONT::extent-predicate
  :arguments ((:ESSENTIAL ONT::FIGURE (F::Situation (f::trajectory +) (F::aspect (? asp F::unbounded F::stage-level)) (F::time-span F::extended)))
-	      (:ESSENTIAL ONT::GROUND (F::abstr-obj (F::scale ont::length)))
+	      (:ESSENTIAL ONT::GROUND (F::abstr-obj (F::scale ont::length-scale)))
              )
  )
 
@@ -834,14 +889,24 @@
 ;; the delayed cargo, a scheduled meeting
 (define-type ONT::scheduled-time-modifier
  :parent ONT::TEMPORAL-MODIFIER
- :arguments ((:ESSENTIAL ONT::FIGURE ((? of f::phys-obj f::situation)))
+ :arguments ((:ESSENTIAL ONT::FIGURE ((? of f::phys-obj f::situation f::time)))
              )
  )
+
+(define-type ont::EARLY-in-process
+    :parent ONT::scheduled-time-modifier
+    :wordnet-sense-keys ("early%3:00:02" "early%4:02:00" )
+    )
+
+(define-type ont::LATE-in-process
+    :parent ONT::scheduled-time-modifier
+    :wordnet-sense-keys ("late%3:00:02" "late%4:02:00" ) 
+    )
 
 ;; temporal locations of events, things
 (define-type ONT::temporal-location
  :parent ONT::TEMPORAL-MODIFIER
- :arguments ((:ESSENTIAL ONT::FIGURE ((? of F::abstr-obj f::situation f::time))) ; abstr-obj: price
+ :arguments ((:ESSENTIAL ONT::FIGURE ((? of F::phys-obj F::abstr-obj f::situation f::time))) ; abstr-obj: price; phys-obj: plant
              )
  )
 
@@ -860,6 +925,7 @@
 #|
 (define-type ONT::LONG
  :parent ONT::event-duration-modifier
+
  :wordnet-sense-keys ("permanent%3:00:00" "lasting%5:00:00:long:02")
  :arguments ((:ESSENTIAL ONT::FIGURE ((? of f::situation f::time)))
              (:essential ont::GROUND (f::abstr-obj (F::Scale F::duration-scale)))
@@ -886,6 +952,7 @@
  :parent ONT::temporal-modifier
  :arguments ((:ESSENTIAL ONT::GROUND (F::abstr-obj (F::scale ont::duration-scale)))
              )
+ :wordnet-sense-keys ("annually%4:02:01" "any_longer%4:02:01" "as_usual%4:02:00" "daily%4:02:00" "ever%4:02:04" "generally%4:02:02" "hourly%4:02:00" "mostly%4:02:03" "no_longer%4:02:00" "per_diem%4:02:00" "typically%4:02:00" "weekly%4:02:00" "yearly%4:02:00")
  )
 
 ;;; this is a fixed frequency - e .g. do it 3 times
@@ -895,22 +962,38 @@
  )
 
 (define-type ONT::always
- :parent ONT::FREQUENCY
- )
+    :wordnet-sense-keys ("always%4:02:00" "always%4:02:01" "always%4:02:02" "always%4:02:03" "always%4:02:04")
+    :parent ONT::FREQUENCY
+    )
 
 (define-type ONT::often
- :parent ONT::FREQUENCY
+    :wordnet-sense-keys ("often%4:02:00" "often%4:02:01")
+    :parent ONT::FREQUENCY
  )
 
 (define-type ONT::sometimes
- :parent ONT::FREQUENCY
+    :wordnet-sense-keys ("sometimes%4:02:01")
+    :parent ONT::FREQUENCY
+ )
+
+(define-type ONT::usually
+    :wordnet-sense-keys ("usually%4:02:00")
+    :parent ONT::FREQUENCY
  )
 
 (define-type ONT::seldom
- :parent ONT::FREQUENCY
+    :wordnet-sense-keys ("seldom%4:02:00")
+    :parent ONT::FREQUENCY
+ )
+
+(define-type ONT::again
+    :wordnet-sense-keys ("again%4:02:00")
+    :parent ONT::FREQUENCY
  )
 
 (define-type ONT::never
+    :wordnet-sense-keys ("never%4:02:00" "never%4:02:01")
+    
  :parent ONT::FREQUENCY
  )
 
@@ -926,8 +1009,8 @@
 ;; so I uncommented the first defn of ONT::VAL
 (define-type ONT::time-span-rel
  :parent ONT::temporal-location
- :arguments ((:ESSENTIAL ONT::GROUND (F::time (F::time-scale f::interval)
-					      (F::time-function (? funcn F::month-name F::year-name F::day-period))
+ :arguments ((:ESSENTIAL ONT::GROUND (F::time ;(F::time-scale f::interval)
+					      ;(F::time-function (? funcn F::month-name F::year-name F::day-period))
 					      ))
 
 ;	     (:ESSENTIAL ONT::SIT-VAL (F::situation))
@@ -940,67 +1023,105 @@
 ;; the meeting next week; he arrives next week
 (define-type ONT::event-time-rel
  :parent ONT::temporal-location
- :arguments ((:ESSENTIAL ONT::FIGURE ((? f F::Situation F::time))) ; time: recent weeks ;(F::aspect (? asp F::dynamic F::stage-level)))) ; can be indiv-level: I was a pumpkin before midnight
+ :arguments ((:ESSENTIAL ONT::FIGURE ((? f F::Situation F::time))) 
              (:ESSENTIAL ONT::GROUND ((? vl F::time f::situation)))
-	     ; 3/2011 conflating time and situation in the val role to reduce search space
-;             (:ESSENTIAL ONT::SIT-VAL (F::situation)) ;; swift 04/14/02 added this to handle when/before/as soon as/etc. + S, e.g. when I go
-             )
+	     )
  )
 
 (define-type ont::start-time
     :parent ont::event-time-rel
+    :wordnet-sense-keys ("beginning%5:00:00:opening:00")
     )
 
 (define-type ont::before
     :parent ont::event-time-rel
-    :wordnet-sense-keys ("after%4:02:00" "after%4:02:01")
+    :wordnet-sense-keys ("before%4:02:03")
     )
 
 (define-type ont::after
     :parent ont::event-time-rel
-    :wordnet-sense-keys ("before%4:02:03")
+    :wordnet-sense-keys ("after%4:02:00" "after%4:02:01")
+    )
+
+(define-type ont::during
+    :parent ont::event-time-rel
+    :comment "DURING, STARTS or ENDS in ITL"
+    )
+
+(define-type ont::simultaneous
+    :parent ont::event-time-rel
+    :comment "EQUAL in ITL"
+    :wordnet-sense-keys ("simultaneous%5:00:00:synchronous:00" "simultaneously%4:02:00")
     )
 
 (define-type ont::immediate
     :parent ont::event-time-rel
-    :wordnet-sense-keys ("immediately%4:02:00" "immediately%4:02:05")
+    :wordnet-sense-keys ("immediate%3:00:00::" "immediately%4:02:00" "immediately%4:02:05")
     )
 
 (define-type ont::when-while
     :parent ont::event-time-rel
-   
+    
     )
 
-(define-type ont::until
+(define-type ont::since-until
     :parent ont::event-time-rel
    
     )
 
+(define-type ont::since
+    :parent ont::since-until
+   
+    )
+
+(define-type ont::until
+    :parent ont::since-until
+   
+    )
+
+
 ;; still, yet, so far, ....
+
+
+(define-type ONT::event-time-wrt-now
+    :parent ONT::event-time-rel
+    )
+
 (define-type ONT::time-rel-so-far
 ; :parent ONT::event-time-rel
-    :parent ONT::EVENT-DURATION-MODIFIER
+    :parent ONT::event-time-wrt-now
     :wordnet-sense-keys ("so_far%4:02:00")
     :arguments ((:ESSENTIAL ONT::FIGURE (F::Situation))
              )
  )
 
-(define-type ONT::event-time-wrt-now
-    :parent ONT::event-time-rel
-     )
-
 (define-type ONT::now
-     :wordnet-sense-keys ("now%4:02:05" "now%4:02:01" "presently%04:02:00")
+     :wordnet-sense-keys ("present%3:00:02::" "now%4:02:05" "presently%4:02:00" "present%3:00:01")
      :parent ONT::event-time-wrt-now
      )
 
 (define-type ONT::recent
-     :wordnet-sense-keys ("new%3:00:00" "past%3:00:00")
+     :wordnet-sense-keys ("new%3:00:00")
+     :parent ONT::event-time-wrt-now
+     )
+
+(define-type ONT::in-future
+     :wordnet-sense-keys ("future%3:00:00")
+     :parent ONT::event-time-wrt-now
+     )
+
+(define-type ONT::in-past
+     :wordnet-sense-keys ("noncurrent%3:00:00::" "past%3:00:00")
      :parent ONT::event-time-wrt-now
      )
 
 (define-type ONT::soon
-     :wordnet-sense-keys ("soon%4:02:00")
+     :wordnet-sense-keys ("soon%4:02:00""imminent%3:00:00")
+     :parent ONT::event-time-wrt-now
+     )
+
+(define-type ont::occuring-now
+     :wordnet-sense-keys ("current%3:00:00")
      :parent ONT::event-time-wrt-now
      )
 
@@ -1016,7 +1137,7 @@
  )
 
 ;; event times not including situations
-(define-type ONT::event-time
+(define-type ONT::event-time-initially
  :parent ONT::event-time-rel
  :arguments (;(:ESSENTIAL ONT::VAL ((? vl F::time)))
 	     (:ESSENTIAL ONT::GROUND ((? grd F::time)))
@@ -1058,7 +1179,7 @@
 ;;; some things apply only to time specifications like 5am/noon
 (define-type ONT::time-clock-rel
  :parent ONT::temporal-location
- :arguments ((:ESSENTIAL ONT::GROUND (F::time (F::time-function (? fn F::clock-time F::day-point)) (f::time-scale f::point)))
+ :arguments ((:ESSENTIAL ONT::GROUND (F::time (F::time-function (? fn F::clock-time F::day-point)))) ;(f::time-scale f::point)))
 ;	     (:ESSENTIAL ONT::SIT-VAL (F::situation))
              )
  )
@@ -1067,7 +1188,7 @@
 ;; short term parking; a long day
 (define-type ONT::interval-duration-modifier
  :parent ONT::event-duration-modifier
- :arguments ((:essential ONT::FIGURE (F::time (f::time-function f::time-frame) (f::time-scale f::interval)))
+ :arguments ((:essential ONT::FIGURE (F::time (f::time-function f::time-frame))) ;(f::time-scale f::interval)))
              )
  )
 
@@ -1100,21 +1221,21 @@
  )
 
 
-(define-type ONT::while
+#|(define-type ONT::while
  :parent ONT::SITUATION-MODIFIER
- )
+ )|#
 
 ;;; this is used only for "that/it". Most normal time object denote intervals or units
 (define-type ONT::Any-Time-object
     :parent ONT::ANY-SEM
-    :sem (F::time (F::time-function F::Any-time-function) (F::time-scale (? sc F::interval F::point)))
+    :sem (F::time (F::time-function F::Any-time-function) (F::scale ONT::TIME-LOC-SCALE)) ;(F::time-scale (? sc F::interval F::point)))
     )
 
 (define-type ONT::Time-object
     :comment "objects that refer to temporal locations in some way"
     :parent ONT::ANY-TIME-OBJECT
     :arguments ((:OPTIONAL ONT::FIGURE))
-    :sem (F::time (F::time-scale (? sc F::point F::interval)))
+    ;:sem (F::time (F::time-scale (? sc F::point F::interval)))
     )
 
 ;; these are intervals such as "duration", which cannot generally be counted
@@ -1122,11 +1243,14 @@
 (define-type ONT::Time-interval
  :wordnet-sense-keys ("interval%1:28:00" "time_interval%1:28:00" "time%1:28:03" "clock_time%1:28:00" "time%1:28:00" "time%1:28:05" "time_period%1:28:00")
  :parent ONT::TIME-OBJECT
- :sem (F::time (F::time-scale (? sc F::interval)) (F::Scale -) (F::Tangible +)) ;;Ont::duration-scale))
- :arguments ((:OPTIONAL ONT::GROUND (F::time (f::time-function f::time-frame) (f::time-scale f::interval) (f::scale ont::duration-scale)))
+ ;:sem (F::time (F::time-scale (? sc F::interval)) (F::Scale -) (F::Tangible +)) ;;Ont::duration-scale))
+ :sem (F::time (F::Tangible +)) ;;Ont::duration-scale))
+ :arguments ((:OPTIONAL ONT::GROUND (F::time (f::time-function f::time-frame) ;(f::time-scale f::interval)
+					     (f::scale ont::duration-scale)))
              ;;; a time of two hours
              (:OPTIONAL ONT::FIGURE ((? t f::situation f::abstr-obj f::time)))
-	     (:OPTIONAL ONT::EXTENT (F::Abstr-obj (f::time-scale f::interval) (f::scale ont::duration-scale)))
+	     (:OPTIONAL ONT::EXTENT (F::Abstr-obj ;(f::time-scale f::interval)
+						  (f::scale ont::duration-scale)))
              )
  )
 
@@ -1140,12 +1264,14 @@
  :arguments ((:REQUIRED ONT::FIGURE)
 	     )
  :comment "e.g., phases of the moon, stage of the project. This type represents stages of a sequence that is more abstract than time."
+ :wordnet-sense-keys ("phase%1:28:00")
 )
 
 ;;  direct reference to times (e.g. now, then, ...)
 ;;  this type is also constructed by the grammar for dates, times of day, etc.
 (define-type ONT::TIME-LOC
- :parent ONT::time-object)
+    :wordnet-sense-keys ("date%1:28:03")
+    :parent ONT::time-object)
 
 (define-type ONT::recurring-time-of-day
     :comment "recurring moments of the day, defined by some event"
@@ -1155,6 +1281,7 @@
 
 (define-type ONT::time-defined-by-event
     :comment "times defined by events"
+    :wordnet-sense-keys ("halftime%1:28:00" "quarter%1:28:01")
     :sem (F::time (F::time-function F::day-point))
     :parent ont::time-interval
     )
@@ -1195,7 +1322,7 @@
 (define-type ONT::Time-point
  :wordnet-sense-keys ("time%1:28:06" "clip%1:11:00" "time%1:11:00" "point%1:28:00" "point_in_time%1:28:00")
  :parent ONT::TIME-OBJECT
- :sem (F::time (f::time-scale f::point))
+ ;:sem (F::time (f::time-scale f::point))
  :arguments ((:OPTIONAL ONT::FIGURE ((? lof f::situation F::time)))
 	     ;; this is because we may have things "the end of an event". In reality, there should be a coercion rule, but we are not doing it yet
 	     ;; middle of the meeting
@@ -1205,12 +1332,13 @@
              )
  )
 
+#||
 (define-type ONT::date-object
  :wordnet-sense-keys ("date%1:28:03" "time%1:03:00")
  :comment "classification of time intervals with respect to some conceptual organization (e.g., calendar)"
  :parent ONT::TIME-Object
- :sem (F::time (F::time-function F::time-of-year) (f::time-scale f::interval))
- )
+ :sem (F::time (F::time-function F::time-of-year)) ;(f::time-scale f::interval))
+ )||#
 
 (define-type ont::date-object-on
     :comment "date objects that use ON - e.g., on Monday, on my birthday"
@@ -1225,20 +1353,17 @@
 
 (define-type ONT::today
      :wordnet-sense-keys ("today%4:02:00" "today%1:28:01")
-     ;:parent ONT::time-loc
-     :parent ONT::date-object
-     )
+     :parent ONT::time-loc
+         )
 
 (define-type ONT::yesterday
      :wordnet-sense-keys ("yesterday%4:02:00" "yesterday%1:28:01")
-     ;:parent ONT::time-loc
-     :parent ONT::date-object
+     :parent ONT::time-loc
      )
 
 (define-type ONT::tomorrow
      :wordnet-sense-keys ("tomorrow%4:02:00" "tomorrow%1:28:01")
-     ;:parent ONT::time-loc
-     :parent ONT::date-object
+     :parent ONT::time-loc
      )
 
 ;;; future, past
@@ -1292,9 +1417,54 @@
 (define-type ONT::day-stage
     :parent ONT::DATE-OBJECT-IN
     :comment "a regular part of the day"
-     :wordnet-sense-keys ("morning%1:28:00" "evening%1:28:00" "night%1:28:00" "twilight%1:28:00" "afternoon%1:28:00"  )
+    :wordnet-sense-keys ("twilight%1:28:00")
     :sem (F::time (f::time-function f::day-period))
- )
+    )
+
+(define-type ont::morning-AM
+    :parent ONT::DAY-STAGE
+    :wordnet-sense-keys ("morning%1:28:00")
+    )
+
+(define-type ont::day-stage-PM
+    :parent ONT::DAY-STAGE
+     )
+
+(define-type ont::afternoon
+    :parent ONT::DAY-STAGE
+    :wordnet-sense-keys ("afternoon%1:28:00")
+    )
+
+(define-type ont::noon
+    :parent ONT::DAY-STAGE
+    :wordnet-sense-keys ("noon%1:28:00")
+    )
+
+(define-type ont::evening
+    :parent ONT::DAY-STAGE
+    :wordnet-sense-keys ("evening%1:28:00")
+    )
+
+(define-type ont::night
+    :parent ONT::DAY-STAGE
+    :wordnet-sense-keys ("night%1:28:00")
+    )
+
+
+(define-type ont::midnight
+    :parent ONT::DAY-STAGE
+    :wordnet-sense-keys ("midnight%1:28:00")
+    )
+(define-type ont::sunrise
+    :parent ONT::DAY-STAGE
+    :wordnet-sense-keys ("dawn%1:28:00" "sunrise%1:11:00"  "sunrise%1:19:00")
+    )
+
+(define-type ont::sunset
+    :parent ONT::DAY-STAGE
+    :wordnet-sense-keys ("sunset%1:28:00" "sunset%1:11:00"  "sunset%1:19:00")
+    )
+
 
 (define-type ONT::year-stage
     :parent ONT::DATE-OBJECT-IN

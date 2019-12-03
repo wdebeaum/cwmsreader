@@ -58,9 +58,10 @@
 "
 
   (let ((return-list nil))
-    (when (symbolp w)
-      (if (hyphenated-symbolp w) (setq w (get-first-part-of-hyphenated-symbol w)))
-      (let ((defs (or wdef (retrieve-from-lex w))))
+    ;;(when (symbolp w)
+      ;;(if (hyphenated-symbolp w) (setq w (get-first-part-of-hyphenated-symbol w)))
+    (let ((defs (or wdef (retrieve-from-lex w)
+		    (if (consp w) (retrieve-multiword-from-trips w)))))
 	(dolist (this-def defs)
 	  (let ((cat (lex-entry-cat this-def))
 		(feats (lex-entry-feats this-def)))
@@ -77,7 +78,7 @@
 	    )
 	  )
 	)
-      )
+    ;;  )
     return-list)
   )
  
@@ -435,12 +436,15 @@ TODO: domain-specific words (such as CALO) and certain irregular forms (such as 
 ;		(if (and (find 'w::punc-minus w)
 ;			 (not (equal 'w::punc-minus (first w))))
 ;		    (remove 'w::punc-minus w) w) w)) ;; remove non-initial hyphenation 
-	 (default-ont-type (or (cdr (assoc pos '((w::v ont::situation-root) (w::n ont::referential-sem) (w::adv  ont::predicate) (w::adj ont::modifier)))) '(ont::referential-sem)))
+	 (default-ont-type (or (cdr (assoc pos '((w::v ont::situation-root) (w::n ont::referential-sem) (w::adv  ont::predicate)
+						 (w::adj ont::property-val))))
+						 ;(w::adj ont::modifier))))
+			       '(ont::referential-sem)))
 	 res)
     ; turning this off in CERNL.
 ;    (if (and (listp w) (contains-number w)) (setq w (convert-number-to-word w)))
     (print-debug "id for ~S is ~S~%" w (gen-id w))
-    (setq res (make-unknown-word-entry w pos .98 nil (gen-id w) (or ont-type default-ont-type) nil penn-tags nil domain-info))
+    (setq res (make-unknown-word-entry w pos .96 nil (gen-id w) (or ont-type default-ont-type) nil penn-tags nil domain-info))
     (print-debug "sense-filtering returns nil; generating ont::referential-sem entry for ~S~%" w)
     res))
 
@@ -559,7 +563,7 @@ TODO: domain-specific words (such as CALO) and certain irregular forms (such as 
 	(setq compat (list child sense)))
       )
     (print-debug "~%compatibility of ~S and ~S is ~S~%" sense sense-list compat)
-    compat)
+    compat)2
   )
 ||#
 (defun update-tagged-sense-list (sense-list sense)
@@ -697,7 +701,9 @@ TODO: domain-specific words (such as CALO) and certain irregular forms (such as 
 		    (if preference-found
 			(setf this-pref (boost-pref this-pref weight))
 			;; demote competing word senses
-			(setf this-pref (penalize-pref this-pref weight)))))	  
+			;;(setf this-pref (penalize-pref this-pref weight))
+			)))
+		    
 	      (pushnew def wdef))))
 	)
     wdef)
@@ -713,9 +719,13 @@ TODO: domain-specific words (such as CALO) and certain irregular forms (such as 
   (if (symbolp w)
       (let* ((reversed-chars (reverse (coerce (symbol-name w) 'list)))
 	     (stemmed (cond ((eq (car reversed-chars) #\S)
-			     (if (eq (cadr reversed-chars) #\E)
-				 (setq reversed-chars (cddr reversed-chars))
-				 (cdr reversed-chars)))
+			     (cond ((eq (cadr reversed-chars) #\E)
+				    (setq reversed-chars (cddr reversed-chars)))
+				   ((and (eq (cadr reversed-chars) #\G) ; e.g., fightings
+					 (eq (caddr reversed-chars) #\N)
+					 (eq (cadddr reversed-chars) #\I))
+				    (cddddr reversed-chars))
+				   (t (cdr reversed-chars))))
 			    ((and (eq (car reversed-chars) #\D)
 				  (eq (cadr reversed-chars) #\E))
 			     (cddr reversed-chars))
@@ -750,7 +760,7 @@ TODO: domain-specific words (such as CALO) and certain irregular forms (such as 
   "penalizes pref by ADJUST towards .9"
   (- pref (* (- pref .9) (or adjust .1))))
 
-(defun filter-by-senses (wdef w trips-pos-list penn-tags ont-types wn-sense-keys domain-info &key tagged-senses-only)
+(defun filter-by-senses (wdef w trips-defs trips-pos-list penn-tags ont-types wn-sense-keys domain-info &key tagged-senses-only)
   "filter the word definitions to return only senses corresponding to the sense classes in the list. If no such sense exists, a default sense is created on the fly using the available sense and pos information, or defaults if missing"
   (let* ((orig-pos-list  (merge-pos-info trips-pos-list penn-tags))
 	 (pos-list (subst 'w::N 'w::name orig-pos-list));; map NAME to N as they are treated equivalently
@@ -780,27 +790,39 @@ TODO: domain-specific words (such as CALO) and certain irregular forms (such as 
 		      (pushnew def compatible-defs :test #'equal)
 		      (setq tagged-senses-remaining (update-tagged-sense-list tagged-senses-remaining this-lf)))
 		  ; for an incompatible sense, demote the preference unless it's already low
-		     (t  
-                      (if (> (lex-entry-pref def) .97)
-		      (setf (lex-entry-pref def) (- (lex-entry-pref def) .01)))
-		      (print-debug "lowering preference for incompatible sense ~S~%" this-lf)
+		     (t
+		      (print-debug "lowering preference for incompatible sense (1) ~S~%" this-lf)
+                      (if (numberp (lex-entry-pref def))
+			  (setf (lex-entry-pref def)
+				(- (lex-entry-pref def)
+				   ;; we retain incompatible senses even if use-tagged-senses-only is set, but at a quite low level, just for robustness
+				   (if tagged-senses-only .1
+				       .01))))
+		      
 		      (push def other-defs)
 		      )))
 	      (t  ; for an incompatible sense, demote the preference unless it's already low
-	       (if (> (lex-entry-pref def) .97)
-		   (setf (lex-entry-pref def) (- (lex-entry-pref def) .01)))
-	       (print-debug "lowering preference for incompatible sense ~S~%" this-lf)
+	       (print-debug "lowering preference for incompatible sense (2) ~S~%" this-lf)
+	       (if (numberp (lex-entry-pref def))
+		   (setf (lex-entry-pref def)
+			 (- (lex-entry-pref def)
+			    ;; we retain incompatible senses even if use-tagged-senses-only is set, but at a quite low level, just for robustness
+			    (if tagged-senses-only .1
+				.01))))
 	       (push def other-defs))
-	   ) 
-	  ))
+	      ) 
+	))
     (print-debug "wdef is ~S~% compatible-defs is ~S~% other-defs are ~S~%" wdef compatible-defs other-defs)
-    (when tagged-senses-remaining
-      (print-debug "No compatible sense found for ~S in sense list ~S~%" w tagged-senses-remaining)
+    ;;  We have now found any entries in the TRIPS lexicon, and retrieved WordNet senses as well if desired
+    ;;   But we still should check whether there are some texttagger interpretations that have not been found.
+    (when  
+	(and tagged-senses-remaining (or *use-trips-and-wf-senses* (null trips-defs) (null compatible-defs)))
+      (print-debug "No compatible sense found for ~S in sense list ~S~% Domain info is ~S~%" w tagged-senses-remaining domain-info)
       (dolist (ont-type tagged-senses-remaining)
 	(dolist (pos orig-pos-list)
 	  (cond ((and pos (compatible-pos-and-ont-type pos ont-type))
 		 ;; create a new entry with the given pos and sense as long as they are compatible
-		 (print-debug "~%point 2")
+		 (print-debug "~%point 2: ")
 		 (let ((new-entry (car (make-unknown-word-entry w pos (convert-raw-score (find-score-in-domain-info domain-info)) nil (gen-id w) (list ont-type) nil penn-tags (list ont-type) domain-info))))
 		   (when new-entry (push new-entry compatible-defs)))
 		 (print-debug "making new sense for ~S as ~S ~S~%" w pos ont-type)
@@ -836,13 +858,18 @@ TODO: domain-specific words (such as CALO) and certain irregular forms (such as 
   (let ((wdef (retrieve-from-lex (car words)))
 	res)
     (dolist (def wdef)
-      (if (equal words (lex-entry-words def))
+      (if (or (equal words (lex-entry-words def))
+	      (and (eq (list-length words) 2)
+		   (let ((partconstit (cadr (assoc 'w::part (cdr (lex-entry-description def))))))
+		     (and partconstit (eq (cadr (assoc 'W::lex (cddr partconstit)))
+					  (second words))))))
 	  (pushnew def res)))
     res)
   )
 
 (defun abstract-type (ont-type)
-  (member ont-type '(ont::referential-sem ont::abstract-object ont::modifier ont::predicate ont::situation-root ont::phys-object ont::action)
+  (member ont-type '(ont::referential-sem ont::abstract-object ont::property-val ont::predicate ont::situation-root ont::phys-object ont::action)
+  ;(member ont-type '(ont::referential-sem ont::abstract-object ont::modifier ont::predicate ont::situation-root ont::phys-object ont::action)
 	  ;;ont::organization ont::geographic-region))
   ))
 
@@ -880,8 +907,9 @@ TODO: domain-specific words (such as CALO) and certain irregular forms (such as 
 	      ;; if we have a duplicate compatible sense, include the domain info for preference calibration
 	       (t (if (and domain-info (is-compatible-sense this-lf tagged-ont-types))
 		     ;; CERNL/TT hack -- don't include domain-info for verbs if we are replacing with the domain-tagged adjectives, to make sure the adjective sense is preferred
-		      (if (or (not (equal this-pos 'w::v))
-			      (and (equal this-pos 'w::v) (not replace-vbn-adj)))
+		      (if (and (not (equal this-pos 'w::pro)) ; exclude pronouns
+			       (or (not (equal this-pos 'w::v))
+				   (and (equal this-pos 'w::v) (not replace-vbn-adj))))
 			  (setq retrieved-sense-info
 				(remove-duplicates (subst (list this-lf this-pos domain-info) (list this-lf this-pos) retrieved-sense-info :test #'equal) :test #'equal))))
 		  (print-debug "duplicate sense ~S w/ domain info~% updated sense-triples are ~S~%" (list this-lf this-pos) retrieved-sense-info)
@@ -931,15 +959,22 @@ TODO: domain-specific words (such as CALO) and certain irregular forms (such as 
 ;  (lxm::get-word-def 'w::aardvark '(:trips-parts-of-speech (w::n) :penn-parts-of-speech (NN) :wn-sense-keys ("aardvark%1:05:00::" "ant_bear%1:05:01::)")))
  ; (lxm::get-word-def 'w::break '(:penn-parts-of-speech (VB) :tag (W::V) :wn-sense-keys ("break%2:29:04::"))) ;; evoke-injury sense, not in TRIPS
  ; (lxm::get-word-def 'w::show '(:penn-parts-of-speech (VB) :tag (W::V) :wn-sense-keys ("show%2:39:02"))) ; ont::show sense, in TRIPS
- ; (lxm::get-word-def 'w::Diltiazem '( :frame (3 12) :sense-info ((:penn-parts-of-speech (NNP NN) :trips-parts-of-speech (W::NAME W::N) :ont-types (ONT::PHARMACOLOGIC-SUBSTANCE)))))
+					; (lxm::get-word-def 'w::Diltiazem '( :frame (3 12) :sense-info ((:penn-parts-of-speech (NNP NN) :trips-parts-of-speech (W::NAME W::N) :ont-types (ONT::PHARMACOLOGIC-SUBSTANCE)))))
+
+(defvar *gloss-override* nil)
 
 (defun get-word-def (w keylist)
   (if (find-arg keylist :var-prefix)
       (setq *var-prefix* (string (find-arg keylist :var-prefix)))
       (setq *var-prefix* "V"))
+  (if (and *gloss-override* (eq *gloss-override* w))
+      (format t  "~%GET-WORD-DEF CALLED WITH GLOSS OVERRIDE ~S" *gloss-override*))
   (let* ((w (util::convert-to-package w :w))
 	 (w (convert-to-symbol w))
-	 (wdef (if (listp w) (retrieve-multiword-from-trips w) (retrieve-from-lex w)))
+	 (wdef (if (not (eq *gloss-override* w))  ;; for gloss evaluations, we suppress the TRIPS lexical entries
+		   (if (listp w) (retrieve-multiword-from-trips w) (retrieve-from-lex w))
+		   (progn (print-debug "~% Lexicon lookup  for ~S is suppressed~%" w)
+			  nil)))
 	 (tagged-senses (clean-up-tagged-senses (find-arg keylist :sense-info)))
 	 (first-tagged-sense (car tagged-senses)) ; only one sense for ptb
 	 (trips-sense-info (get-lf w :wdef wdef))	 
@@ -961,9 +996,11 @@ TODO: domain-specific words (such as CALO) and certain irregular forms (such as 
     ;;	     tagged-senses
     (cond (tagged-senses ;; text-tagger information, such as pos or ont-type, accompanies word reqest; loop through each tagged sense and search for a compatible sense in TRIPS or WF; if none found, generate default senses based on the tagged information and adjust sense preferences accordingly (e.g. in CERNL, senses with UMLS info are preferred above others)
 	   (dolist (this-sense-keylist tagged-senses)
+	     (print-debug "~% Processing sense ~S" this-sense-keylist)
 	     (let* ((domain-info (find-arg this-sense-keylist :domain-specific-info))
 		    (penn-tags (util::convert-to-package (find-arg this-sense-keylist :penn-parts-of-speech) :w))
-		    (these-ont-types (find-arg this-sense-keylist :ont-types))
+		    (these-ont-types (union (find-arg this-sense-keylist :ont-types)
+					    (map-wnsenses-to-ont-types (find-arg this-sense-keylist :wn-sense-keys))))
 		    
 		    )
 	       
@@ -1032,25 +1069,27 @@ TODO: domain-specific words (such as CALO) and certain irregular forms (such as 
 	     (setq w (remove-noninitial-hyphens w))
 	     ; turning this off in CERNL so we get 30-mg rather than THIRTY-MG
 ;	     (if (contains-number w) (setq w (convert-number-to-word w)))
-	     (print-debug "warning:: creating underspecified entry for domain-tagged multiword ~S~%" w)
+	     (print-debug "warning:: creating underspecified entry for domain-tagged multiword ~S tagged as ~S~%" w tagged-senses)
 	     (dolist (this-sense-keylist tagged-senses)
 	       (let* ((domain-info (find-arg this-sense-keylist :domain-specific-info))
 		      (rawscore (find-arg this-sense-keylist :score))
 		      (score (if (numberp rawscore)
-				 (convert-raw-score rawscore) .98))
+				 (convert-raw-score rawscore) .96))
 				     ;;(if (and (numberp rawscore) (< rawscore .95))
 			;;	 (max (+ rawscore (/ (- 1 rawscore) 1.5)) .95)
 			;;	 rawscore))  ;; reduce the impact of the Texttagger scores
 		      (penn-tags (util::convert-to-package (find-arg this-sense-keylist :penn-parts-of-speech) :w))
 		      (these-word-categories (merge-pos-info nil penn-tags))
 		      (these-ont-types (find-arg this-sense-keylist :ont-types)))
+		 (print-debug "underspecified entry: ont-types=~S score=~S" these-ont-types score)
 		 (dolist (ont-type these-ont-types)
 		   (dolist (cat these-word-categories)
 		     (when (compatible-pos-and-ont-type cat ont-type)
 		       (print-debug "~%point 3")
 		       (setq res (append res (make-unknown-word-entry w cat score NIL (gen-id w) (list ont-type) nil penn-tags these-ont-types domain-info))))
 		     ))
-		 (if (null res) (setq res (append res (make-default-unknown-word-entry w nil penn-tags nil))))
+		 (if (null res)
+		     (setq res (append res (make-default-unknown-word-entry w nil penn-tags nil))))
 	       )))
 	    (t  (print-debug "warning:: LXM found no entries -- returning default entry ~%")
 		(setq res 
@@ -1064,7 +1103,7 @@ TODO: domain-specific words (such as CALO) and certain irregular forms (such as 
     (setq res (eliminate-redundancies (remove-if #'null res)))
     (if res
 	(progn
-	  (print-debug "returning entries to parser for ~S ~S~%" w res)
+	  (print-debug "~%returning entries to parser for ~S ~S~%" w res)
 	  (listify-lex-entry res)); listify for the parser
 	;; making unknown word entry failed, make generic entry
 	(listify-lex-entry (make-default-unknown-word-entry w nil '(w::n) nil)))
@@ -1072,7 +1111,7 @@ TODO: domain-specific words (such as CALO) and certain irregular forms (such as 
 
 
 (defun eliminate-redundancies (entries)
-  entries)
+  (remove-duplicates entries :from-end t :test #'eq))
 #||
   "This does a final check to find redundant or subsumed entries from external resources"
   (when entries
@@ -1087,7 +1126,12 @@ TODO: domain-specific words (such as CALO) and certain irregular forms (such as 
 						(get-feature-from-lex-entry x 'W::LF))
 					    entries)))
 	 (eliminate-redundancies others))
-  ))))||#
+))))||#
+
+(defun map-wnsenses-to-ont-types (wnsenses)
+  (remove-duplicates (mapcan #'(lambda (wnsense)
+				 (wf::best-ont-type-for-sense-key wnsense))
+			     wnsenses)))
 
 (defun eliminate-redundancy (entries remainingtypes)
   (when entries
@@ -1131,8 +1175,9 @@ TODO: domain-specific words (such as CALO) and certain irregular forms (such as 
     ;; it's defined if we didn't just make up a single referential-sem sense
     (not (and (= 1 (length defs))
 	      (eq 'ont::referential-sem
-		  (second (second (assoc 'w::lf (cddr (nth 3 (car defs))))))
-		  )))))
+		  (let ((lf (second (assoc 'w::lf (cddr (nth 3 (car defs)))))))
+		    (if (consp lf) (second lf) lf)))
+	      ))))
 
 (defun refine-existing-entry-with-sense-info (wdef sense-info)
   (let ((ont-type (car (find-arg (car sense-info) :ont-types))))
@@ -1177,43 +1222,56 @@ TODO: domain-specific words (such as CALO) and certain irregular forms (such as 
   (let* ((newtypes (subst 'ont::EVENT-OF-CHANGE 'ont::procedure types))  ;; temporary 
 	 ;; if certain senses have domain-specific-info, ignore the others
 	 (newertypes (if (find-if #'(lambda (x) (find-arg x :domain-specific-info)) newtypes)
-		  (remove-if-not #'(lambda (x) (find-arg x :domain-specific-info)) newtypes)
-		  newtypes))
-	 ;; if we have a tagged protein ignore the others
+			 ;;(remove-if-not #'(lambda (x) (find-arg x :domain-specific-info)) newtypes)
+			 (penalize-those-with-no-domain-info newtypes)
+			 newtypes))
+	 
 	 (res  (remove-if #'(lambda (x) (equal (find-arg x :ont-types) '(ont::referential-sem)))
 			  newertypes)))     ;;  MAybe we should keep the POS tags???????
 
-    #||(res (if (find-if #'(lambda (x) (member 'ont::PROTEIN (find-arg x :ont-types))) newertypes)
-		  (mapcar #'(lambda (x) (reduce-ont-type x 'ont::protein))
-			  (remove-if-not #'(lambda (x) (member 'ont::PROTEIN (find-arg x :ont-types))) newertypes))
-		  newertypes)))||#
     (print-debug "Cleaned up senses are ~S" res)
-    res))
-    
+    (or res newertypes)))
+
+(defun penalize-those-with-no-domain-info (types)
+  (when types
+    (let ((firsttype (car types)))
+    (if (find-arg firsttype :domain-specific-info)
+	(cons firsttype (penalize-those-with-no-domain-info (cdr types)))
+	(let ((score (find-arg firsttype :score)))
+	  (cons
+	   (if score (replace-arg firsttype :score (if (numberp score) (* score .9) .7))
+	       (append firsttype (list :score .7)))
+	   (penalize-those-with-no-domain-info (cdr types))))))))
+
 (defun reduce-ont-type (sense ont-type)
   (replace-arg sense :ont-types (list ont-type)))
 
 (defun process-word-request (w keylist wdef)
   "
- get-word-def (w)
  @param w : word 
  @return  : the lexicon entry for the word (a lex-entry structure) in list format for message passing
             this lexicon entry retrieval incorporates ontologymanager info in the lex definition (sem features, roles)
  @visibility public
  "
  (let* ((trips-pos-list (find-arg keylist :trips-parts-of-speech))
-	(wn-sense-keys (when (and wf::*use-wordfinder* (not (exclude-from-lookup w nil nil)))
-			   (remove-if #'wf::stoplist-p
-				      (find-arg keylist :wn-sense-keys))
-			   ))
-	(rawscore (find-arg keylist :score))
+	(wn-sense-keys (truncate-list (when (and wf::*use-wordfinder* (not (exclude-from-lookup w nil nil)))
+					(remove-if #'wf::stoplist-p
+						   (find-arg keylist :wn-sense-keys))
+					)
+				      *wf-sense-limit*))
+	(domain-info (find-arg keylist :domain-specific-info))
+	(rawscore (find-score keylist domain-info))
+	(alternate-spellings (find-arg keylist :alternate-spellings))
 	(score (if (numberp rawscore) (convert-raw-score rawscore) .98))
 	(wn-pos-list (when wn-sense-keys (trips-pos-for-wn-sense-keys wn-sense-keys)))
-	(domain-info (find-arg keylist :domain-specific-info))
+
 	(merged-trips-wn-pos-list (union trips-pos-list wn-pos-list))
+	(xxx (print-debug "~%MERGED=~S  TRIPS=~S  WN=~S Wnsenses=~S " merged-trips-wn-pos-list trips-pos-list wn-pos-list wn-sense-keys))
+	
 	(penn-tags (util::convert-to-package (find-arg keylist :penn-parts-of-speech) :w))
 	(semantics-from-penn-tag (penn-tag-to-trips-semantics penn-tags))
 	(ont-sense-tags (find-arg keylist :ont-types))
+	(yyy (print-debug "~%ONT-SENSE-TAGS=~S" ont-sense-tags))
 	res
 	(*package* *lxm-package-var*)	 
 	(wf-poslist (or merged-trips-wn-pos-list *default-wf-poslist*)) ;; use default pos list if no pos passed in from parser
@@ -1221,22 +1279,35 @@ TODO: domain-specific words (such as CALO) and certain irregular forms (such as 
 	(this-trips-sense-list (get-lf w :wdef wdef))
 	(wf-wdef (when (and *use-wordfinder*
 			    (not (exclude-from-lookup w this-trips-pos-list penn-tags)))
+		   ;;(format t "~%~%HERE!!! with  ~S and ~S"  wf-poslist this-trips-pos-list)
 		   (if wdef  ;;  there are TRIPS entries for the word
 		      (if *use-trips-and-wf-senses*   ;; check if we should get the WN defs anyway
 			  (get-unknown-word-def w :pos-list wf-poslist :penntag penn-tags  :ont-sense-tags ont-sense-tags :trips-sense-list this-trips-sense-list :wn-sense-keys wn-sense-keys :score score)
 			  ;; word in trips; retrieve only WF senses from non-trips pos
 			  (if (set-difference wf-poslist this-trips-pos-list) 
-			      (get-unknown-word-def w :pos-list (set-difference wf-poslist this-trips-pos-list) :penntag penn-tags  :ont-sense-tags ont-sense-tags :trips-sense-list this-trips-sense-list :wn-sense-keys wn-sense-keys :score score)))
+			      (get-unknown-word-def w :pos-list (set-difference wf-poslist this-trips-pos-list) :penntag penn-tags  :ont-sense-tags ont-sense-tags :trips-sense-list this-trips-sense-list :wn-sense-keys wn-sense-keys :score score)
+			      (print-debug "~% SET difference failed on ~S and ~S" wf-poslist this-trips-pos-list)))
 		      ;; there are no entries in TRIPS
 		      (get-unknown-word-def w :pos-list wf-poslist :penntag penn-tags :ont-sense-tags ont-sense-tags :trips-sense-list this-trips-sense-list :wn-sense-keys wn-sense-keys :score score))))
 	
 	(backup-wf-wdef (if (and *use-wordfinder* merged-trips-wn-pos-list (null wf-wdef)) ;; null lookup using pos from TT
 
 			    ;; so try again using default pos list and no sense tags, in case of bad tagging
-			    (if (not wdef) (get-unknown-word-def w :pos-list *default-wf-poslist* :penntag penn-tags :score score)
-			      (if (and *use-trips-and-wf-senses* (not (exclude-from-lookup w this-trips-pos-list penn-tags)))
-				  (get-unknown-word-def w :pos-list (or (set-difference *default-wf-poslist* this-trips-pos-list) *default-wf-poslist*) :penntag penn-tags :score score)))))
-	(final-wf-wdef (or wf-wdef backup-wf-wdef))
+			    (if (not wdef)
+				(get-unknown-word-def w :pos-list *default-wf-poslist* :penntag penn-tags :score score)
+				(if (and *use-trips-and-wf-senses* (not (exclude-from-lookup w this-trips-pos-list penn-tags)))
+				    (get-unknown-word-def w :pos-list (or (set-difference *default-wf-poslist* this-trips-pos-list) *default-wf-poslist*) :penntag penn-tags :score score)))))
+	;; still no WDEF or WN senses!  try alternate spellings
+	(backup-from-alternates (if (and *use-wordfinder* alternate-spellings merged-trips-wn-pos-list (null wf-wdef) (null backup-wf-wdef))
+				    (mapcar (lambda (x)
+					      (progn
+						(setf (lex-entry-description x) (append (lex-entry-description x) (list (list 'w::orig-lex w))))
+						x))
+					    (gather-defs-from-alternates alternate-spellings merged-trips-wn-pos-list (simplify-tags penn-tags) score))))
+	#||(mapcan #'(lambda (x) (get-unknown-word-def (intern (string-upcase x) :w) :pos-list merged-trips-wn-pos-list :penntag penn-tags :score score))
+								   alternate-spellings)))|#
+				    
+	(final-wf-wdef (or wf-wdef backup-wf-wdef backup-from-alternates))
 	(adjusted-wdef  (if *use-domain-senses* (boost-domain-senses wdef) wdef))
 	;; if using combined senses and there is a WF word definition, lower the WF definition score and append it to the TRIPS word definition
 	(combined-wdef (if (and final-wf-wdef adjusted-wdef) (append adjusted-wdef final-wf-wdef)))
@@ -1247,11 +1318,11 @@ TODO: domain-specific words (such as CALO) and certain irregular forms (such as 
    ;; now get TRIPS senses from the calling function only
    (setq res (or combined-wdef adjusted-wdef final-wf-wdef))
   
-   (print-debug "~%PROCESS-WORD-REQUEST:  RES is ~S merged-trips-wn-pos-list = ~S" res merged-trips-wn-pos-list)
+   (print-debug "~%PROCESS-WORD-REQUEST:  RES is ~S merged-trips-wn-pos-list = ~S ont-sense-tags = ~S" res merged-trips-wn-pos-list ont-sense-tags)
    ;; filter the results according to tagging information: senses or pos
    (cond (;(and (not (find 'w::name (merge-pos-info trips-pos-list penn-tags))) ; no sense filtering on names
 	  (or (not (null ont-sense-tags)) (not (null wn-sense-keys)));)
-          (setq res (or (filter-by-senses res w merged-trips-wn-pos-list penn-tags ont-sense-tags wn-sense-keys domain-info :tagged-senses-only *use-tagged-senses-only*) res)))
+          (setq res (or (filter-by-senses res w wdef merged-trips-wn-pos-list penn-tags ont-sense-tags wn-sense-keys domain-info :tagged-senses-only *use-tagged-senses-only*) res)))
 	 
          ;; lexical filtering for the penn treebank domain
          ((and *use-tagged-pos-only* (or trips-pos-list penn-tags))
@@ -1273,14 +1344,50 @@ TODO: domain-specific words (such as CALO) and certain irregular forms (such as 
          ((or merged-trips-wn-pos-list penn-tags)
           (setq res (adjust-pos-preferences res trips-pos-list penn-tags)))
          (t nil))
-   (print-debug "process-word-request returns ~S~%" res)
+   (print-debug "~%process-word-request returns ~S~%" res)
    res)
  )
 
+(defun find-score (keylist domain-info)
+  "if the score is not specified at the top, we ook in the MATCHES information"
+  (or (find-arg keylist :score)
+      (let ((matches (find-arg-in-act (cadr (car domain-info)) :matches)))
+	(when (consp matches)
+	  (let ((scores (mapcar #'(lambda (x)
+				    (find-arg-in-act x :score))
+				matches)))
+	    (apply #'max scores)
+	    )
+	  ))))
+	
+      
+(defun simplify-tags (tags)
+ nil)
+
+(defun gather-defs-from-alternates (alts pos-list penn-tags score)
+  "gathers defs for each altyernate spelling, decreasing score as we go to encode preference"
+  (when alts
+    (let ((w (intern (string-upcase (car alts)) :w)))
+      (append (or (retrieve-from-lex w)
+		  (get-unknown-word-def w :pos-list pos-list :penntag penn-tags :score score))
+	      (gather-defs-from-alternates (cdr alts)  pos-list penn-tags (* score .995)))
+      )))
+
+(defun truncate-list (l n)
+  (when (and (> n 0) l)
+    (cons (car l)
+	  (truncate-list (cdr l) (- n 1)))))
+		    
+
+; 2019/01/24
 (defun convert-raw-score (score)
-  ;(+ .95 (* (* score score) .05)))
-  ;(+ *domain-score-lower-bound* (* (* score score) .05)))
-  (+ *domain-score-lower-bound* (* (* score score) (- 1 *domain-score-lower-bound*))))
+ "We want lexical scores to all be relativly high as low ones would never be considered"
+  (cond ((>= score .99) score)
+	(t (+ *domain-score-lower-bound* (* score score ;(* score score score) ; 2019/02/04
+					    (- .99 *domain-score-lower-bound*))))
+	)
+  )
+
 
 (defun add-word-def-if-necessary (w pos)
   "The parser calls this when it sees an entry for a composite word -- if one of the subsequent 
@@ -1370,7 +1477,7 @@ TODO: domain-specific words (such as CALO) and certain irregular forms (such as 
 	   ;(setq type 'ont::phys-object)
 	   (setq res (dynamic-add-lexeme (list word) 'w::n type templ)))
 	  (w::v
-	   (setq templ 'arg0-arg1-xp-templ)
+	   (setq templ 'agent-affected-xp-templ)
 	   ;(setq type 'ont::situation-root)
 	   (setq res (dynamic-add-lexeme (list word) 'w::v type templ)))
 	  (w::adj
@@ -1432,8 +1539,10 @@ TODO: domain-specific words (such as CALO) and certain irregular forms (such as 
 
 (defun get-sem-feature-value (lftype feature)
   "given an lftype and feature, return the sem feature value"
-  (cdr (assoc feature (cddr (make-type-spec (get-lf-sem lftype :no-defaults nil) :semvar nil :feature-list-sign '$))))
-  )
+  (let ((sem (get-lf-sem lftype :no-defaults nil)))
+    (when sem
+      (cdr (assoc feature (cddr (make-type-spec sem :semvar nil :feature-list-sign '$))))
+      )))
 
 (defun is-reln (word lftype)
   "return the subcat role if word with this lftype is a relational noun, otherwise nil. This is used by IM to resolve possessive :assoc-with relations"

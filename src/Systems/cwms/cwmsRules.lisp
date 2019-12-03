@@ -81,7 +81,8 @@
 	    )
 	   )
 	  |#
-	  
+
+	  #|
 	  ((?reln ?!obj (:* (? t1 ONT::PRICE ONT::QUANTITY-ABSTR) ?!w) :FIGURE ?!f :location ?loc :time ?time1 :SEQUENCE -)
 	   (?reln2 ?!f (:* (? t2 ONT::GRAINS ONT::CHEMICAL) ?!w2) :location ?loc2 :time ?time2 :SEQUENCE -)
 
@@ -123,18 +124,23 @@
 	    )
 
 	   )
+	  |#
 
-	  ; map develop from GROW to DEVELOP
+	  #|
+	  ; map develop from ONT::GROW to ONT::DEVELOP
 	  ((?reln ?!obj (:* (? t1 ONT::GROW) (? w w::development w::develop)) :SEQUENCE -) ; need the other forms too, e.g., develops
 	   -simple-ref0>
 	   90
-	   (ONT::TERM ?!obj ONT::DEVELOP
-	    :name ?w
+	   (;ONT::TERM ?!obj ONT::DEVELOP
+	    ?reln ?!obj ONT::DEVELOP
+	    ;:name ?w
 	    ;:drum ?code  ; we can call the parameter finder here
 	    :rule -simple-ref0
 	    ))
+	  |#
 	  
 
+	  #|
           ;; rule20_1_AGENT_AFFECTED rule with AGENT and AFFECTED
 	  ;; cwms: made ?ag and ?obj optional and with no type constraint (not even REFERENTIAL-SEM) because the type could be an extracted type that does not exist in the TRIPS ontology
           ((?!reln0 ?ev
@@ -186,6 +192,7 @@
 	    )
 	   |#
            )
+	  |#
 
 	  #| ; 20180618: may be duplicates of the expanded rules
           ;; rule30_1_AGENT_AFFECTED rule with AGENT and AFFECTED
@@ -305,6 +312,7 @@
 	  ;;;;;;;;;;;;;;;;;;;
 	  ;;;; on + nominalization
 	  ;;;;;;;;;;;;;;;;;;;
+	  #|
           ((?!reln0 ?ev ONT::HAVE-PROPERTY :NEUTRAL ?n :FORMAL ?!f)
 	   (?reln1 ?n ?type1) ; optional
 	   (?!reln2 ?!f ONT::ASSOC-WITH :GROUND ?!gd)
@@ -319,6 +327,7 @@
 	    :passive + ; so that -loc2-affected won't apply
             )
            )
+	  |#
 	  
 	  
 	  )

@@ -3,13 +3,20 @@
 (in-package :cwmsAgent)
 
 (defvar *evaluation-record* nil)
+(defvar *current-state* 'top-level)
 
-(defun memo-evaluation-result (status id ps-act data)
-  (push (list id status ps-act data)
+(defun update-current-state (x)
+  (setq *current-state* x))
+
+(defun memo-evaluation-result (status id ps-act data possible-tasks)
+  (push (list id status ps-act data possible-tasks)
 	*evaluation-record*))
 
 (defun get-evaluation-result (id)
-  (cdr (assoc id *evaluation-record*)))
+  "returns values: STATUS PS-ACT DATA and possible tasks "
+  (let ((res (or (cdr (assoc id *evaluation-record*))
+		 (cdar *evaluation-record*))))
+    (values (car res) (cadr res) (caddr res) (cadddr res))))
     
 
 (defun process-reply (msg args result)
@@ -21,8 +28,8 @@
 	(send-msg (list 'tell :content (clean-for-sending result))))))
 
 (defun clean-for-sending (msg)
+  "makes sure everthing is either a symbol, number, string, or list"
   (when msg
-    
     (cond ((or (symbolp msg) (numberp msg) (stringp msg))
 	   msg)
 	  ((or (symbolp (car msg)) (numberp (car msg)) (stringp (car msg)))
@@ -34,88 +41,86 @@
 	   (cons 'content-removed (clean-for-sending (cdr msg)))))))
 
 (defun clean-out-unbound-vars (xx)
-  (format t "~%Expression to clean is ~S" xx)
-  xx)
+  (clean-for-sending xx)
+  )
   
 (defun process-evaluate (msg args)
-  (let ((content (find-arg args :content))
-	(context (find-arg args :context)))
-    (dagent::set-result nil)
-    (pop-active-goal-if-necessary)
-    (dagent::invoke-state 'evaluate-handling nil (dagent::lookup-user 'desktop) nil nil
-			  (cons
-			   (append `(REQUEST XX EVALUATE :content ,content :context ,context :ps-id)
-				   content)
-			   context))
-    (let ((res (clean-out-unbound-vars (dagent::get-latest-result))))
-      (trace-msg 2 "~% EVALUATE returns ~S" res)
-      (if res 
-	  (case (car res)
-	    (modify-goal
-	     (let* ((goal-id (gen-symbol 'G))
-		    (goal-desc (second res))
-		    (desc-id (second goal-desc))
-		    (ps-act `(ADOPT :ID ,goal-id
-				   :what ,desc-id
-				   :as (modification :of ,(find-arg-in-act content :id))))
-		    (new-context (cons goal-desc context)))
-	       (add-to-goal-symbol-table goal-id (create-goal-from-description goal-id goal-desc context))
-	       (memo-evaluation-result 'acceptable goal-id ps-act new-context)
-	       (list 'REPORT :content `(acceptable :what ,content
-						   :effect ,ps-act
-						   :context ,new-context))))
-	    ((add-subgoal new-goal)
-	     (let* ((goal-id (gen-symbol 'G))
-		    (goal-desc (second res))
-		    (reln (case (car res)
-			    (add-subgoal 'subgoal)
-			    (new-goal 'goal)))
-		    (desc-id (second goal-desc))
-		    (ps-act `(ADOPT :ID ,goal-id
-				   :what ,desc-id
-				   :as ,(if (eq reln 'goal)
-					   '(goal)
-					   (list reln :of (goal-id (get-active-goal))))))
-		    (new-context (cons goal-desc context)))
-	       (add-to-goal-symbol-table goal-id (create-goal-from-description goal-id goal-desc context))
-	       (memo-evaluation-result 'acceptable goal-id ps-act new-context)
-	       (list 'REPORT :content `(acceptable :what ,content
-						   :effect ,ps-act
-						   :context ,new-context))))
-
-	    (;(set-parameter CONFIRM-PARAMETER)
-	     (clarify-parameter CONFIRM-PARAMETER confirm-plan)
-	     (format t "~%Processing SET-PARAMETER ...")
-	     (let ((id (find-arg-in-act res :id))
-		   (value (extract-value (find-arg-in-act res :value) context))
-		   (result (find-arg-in-act res :result)))
-	       (if (eq result 'acceptable)
-		   (progn 
-		     (memo-evaluation-result 'acceptable id
-					     (list (car res) :id id :value value)
-					     nil)
-		     (list 'REPORT
-			   :content (list 'acceptable :what content)
-			   :context context)
-		     )
-		 (list 'REPORT
-		   :content (list 'unacceptable :type 'INVALID-ANSWER :what content :reason (list 'expected-type (find-arg-in-act res :ptype)) )
-		   :context context)
-		 )
-	       ))
-
-	    ;; default
-	    (acceptable
-	     (list 'REPORT
-		   :content (list 'acceptable :what (find-arg-in-act res :content))
-		   :context context))
-	    (otherwise
-	     `(REPORT :content (unacceptable :type FAILED-TO-INTERPRET :what ,(find-arg-in-act res :content))
-	       :context ,context))
+  (let* ((content (find-arg args :content))
+	 (what (find-arg-in-act content :what))
+	 (as (find-arg-in-act content :as))
+	 (goal-id (find-arg-in-act content :id))
+	 (context (find-arg args :context))
+	 )
+       (multiple-value-bind
+	     (status new-goal-id interps newcontext extra-info)
+	   (evaluate-ps-act content context)
+	 (memo-evaluation-result status new-goal-id interps newcontext extra-info)
+	 (case status
+	   ((acceptable ambiguous)    
+	    (list 'REPORT :content `(,status :what ,content
+					     :context ,newcontext))
 	    )
-	  `(REPORT :content (unacceptable :type FAILED-TO-INTERPRET :what ,content) :context ,context)
-	  )
+	   (otherwise
+	    
+	    (list 'REPORT :content `(UNACCEPTABLE :what ,content :type FAILED-TO-INTERPRET
+						  :reason ,interps
+						  :context ,newcontext))
+	    )
+	   ))
+       ))
+
+(defun evaluate-ps-act (content context)
+  (let* (
+	 (what (find-arg-in-act content :what))
+	 (as (find-arg-in-act content :as))
+	 (goal-id (find-arg-in-act content :id))
+	 )
+    (case (car content)
+      (adopt
+       (multiple-value-bind
+	     (status interps)
+	   (evaluate-adopt-goal what context as)
+	 (let* ((itasks (mapcar #'(lambda (x)
+				  (instantiate-task (car x) (cadr x) goal-id)) interps))
+	       (newcontext (append (build-formula (car itasks)) context)))
+	   (values status goal-id interps newcontext itasks))))
+      (answer
+       (multiple-value-bind
+	     (status interps)
+	   (evaluate-answer content context)
+	 (values status (find-arg-in-act content :to) interps context)))
+
+      (assertion
+       (multiple-value-bind
+	     (status interps)
+	   (evaluate-assertion content context)
+	 (values status (find-arg-in-act (find-arg-in-act content :as) :goal)
+		 interps context)))
       )))
+       
+				
+	     
+
+(defun build-formula (task)
+  "Takes an instantiated task and build a proposition like description with bound arguments"
+  (when (task-p task)
+    (cons (task-name task)
+	  (get-bound-args (task-arguments task)))))
+
+(defun get-bound-args (args)
+  (when args
+    (if (not (im::var-p (argument-value (car args))))
+	(list* (argument-name (car args))
+	       (argument-value (car args))
+	       (get-bound-args (cdr args)))
+	(get-bound-args (cdr args))
+	)))
+
+(defun extract-result (res)
+  (values (car res)
+	  (clean-out-unbound-vars (find-arg-in-act res :goal))
+	  (find-arg-in-act res :continuation)))
+	  
  
 (defun extract-value (id context)
   (let* ((lf (get-from-context id context))
@@ -135,120 +140,91 @@
 (defun process-commit (msg args)
   ;; We commit the goal, which typically updates the plan state in some way
   (let* ((content (find-arg args :content))
-	 (effect (find-arg args :effect))
-	 (cps-act (if (and effect (not (eq effect '-)))
-		      effect
-		      content))
-	 (goal-id (find-arg-in-act cps-act :id))
-	 (as (find-arg-in-act cps-act :as))
-	 (goal (get-goal-with-id goal-id)))   ;; we should have already built the goal when we did the evaluate
+	 (goal-id (find-arg-in-act content :id))
+	 (as (find-arg-in-act content :as))
+	 (toptask (top-of-task-stack))
+	 )
     
-    ;; We update our problem solving state according to the new CPS-ACT
-    (case (car cps-act)
-      (ADOPT 
-       (case (car as)
-	 ;; a top level goal
-	 ((goal modification) ;; the modification is a short cut here until I figure out how better to handle it
-	  (adopt-new-goal cps-act goal-id goal))
-	 (subgoal
-	  (adopt-new-subgoal cps-act goal-id goal (find-arg-in-act as :of)))
-	 ))
-      (ANSWER
-       ;; we've already processed this, so install cached value
-       (let* ((id (find-arg-in-act content :to))
-	      (pv (get-evaluation-result id))
-	      (answer (cadr pv))
-	      (context (caddr pv)))
-	 (case (car answer)
-	   (clarify-parameter
-	    (install-parameter-value-in-plan (find-arg-in-act answer :id)
-					     (find-arg-in-act answer :value)))
-	   (confirm-parameter
-	    (case (find-arg-in-act answer :value)
-	      (ONT::TRUE
-	       ;;  step was confirmed so we're fine, what for the WHAT-NEXT
-	       nil)
-	      (otherwise
-	       (break "can't handle confirmation denial yet!")
-	       
-	       )))
-	   )))
-	 
-	 (otherwise
-	  (break "  IN COMMIT"))
-	 )))
-    
-    #||(if goal
-    (multiple-value-bind (parameters problems)
-    (identify-parameters (goal-context goal))
-	  (setf (goal-parameters goal)
-		(append (mapcar #'(lambda (x)
-				    (append '(PARAMETER :status :known)  (cdr x)))
-				parameters)
-			(mapcar #'(lambda (x)
-				    (append '(PARAMETER :status :unknown) (cdr x)))
-				problems)))
-	  (push-top-level-goal goal))
-	  	  
-	'(REPORT :content (FAILURE :type UNKNOWN-GOAL))
-	)))
-||#
-(defun identify-parameters (context)
-  "Returns two values: a list of parameters with IDs successfully identify,
-       and a list of terms that cannot be identified"
-  (when context
-    (let ((term (car context)))
-      ;; if not a term that we would associate a parameter with, we skip it
-      (if (or (member (car term) '(ont::RELN ont::event))
-	      (member (find-arg term :instance-of) '(ont::NUMBER ont::person ont::quantity ont::set)))
-	  (identify-parameters (cdr context))
-	  ; Otherwise, we try to identify it
-	  ;; first do the recursive call to get the rest
-	  (multiple-value-bind 
-		(rest-of-parameters rest-of-problems)
-	      (identify-parameters (cdr context))
-	    ;; now process the first case
-	    (multiple-value-bind 
-		  (dependent-terms remaining-context)
-		(remove-unused-context term context)
-	      (let ((reply (send-and-wait `(REQUEST :content (IDENTIFY-PARAMETER :context ,dependent-terms)))))
-		(if (eq (car reply) 'parameter-identified)
-		    (values (cons reply rest-of-parameters)
-			    rest-of-problems)
-		    (values rest-of-parameters
-			    (cons reply rest-of-problems))))))))))
-  
+    (if (and toptask
+	     (eq (task-status toptask) 'proposed)
+	     (eq goal-id (task-id toptask))
+	     )
+	;;  special case, the COMMIT is accepting a goal the system just proposed
+	(case (task-name toptask)
+	  (IDENTIFY-PARAMETER
+	   ;;  User has agreed to an argument value, we just return successfully from the top task
+	   (trace-msg 2 "USer accepted the proposal, we are popping the stack")
+	   (return-from-top-task nil)
+	   )
+	  (otherwise
+	   ;;  the task is not done yet, probably, we switch status to ACTIVE and await a WHAT-NEXT
+	   (setf (task-status toptask) 'active)
+	  ))
+	      ;;  for identify-parameter with a 
+	;;  The usual case, a user proposal that was judged acceptable has been committed
+	(multiple-value-bind (status ps-act data possible-tasks)
+	    (get-evaluation-result goal-id)     
+	  ;; We update our problem solving state according to the new CPS-ACT
+	  (case (car content)
+	    (ADOPT 
+	     (case (car as)
+	       ;; a top level goal
+	       ((goal modification) ;; the modification is a short cut here until I figure out how better to handle it
+		(push-task (car possible-tasks)))
+	       (subgoal
+		))
+	     )
+	    (ANSWER 
+	     ;; we've already processed this, so install cached value
+	     (multiple-value-bind (status record)
+		 (get-evaluation-result (find-arg-in-act content :to))
+	       (let ((task (caar record))
+		     (bndgs (cadr (car record))))
+		 (if (eq status 'acceptable)
+		     ;; the question is satisfied, we pop the clarificaiton task after
+		     ;;  installing the answer below
+		     (return-from-top-task bndgs)
+		     (format t "~% problem in processing answer"))
+		 )))
+	    (ASSERTION  ;; assertions just add bindings to the top task
+	     ;; we've already processed this, so install cached value - leaving top task intact
+	     (multiple-value-bind (status record)
+		 (get-evaluation-result (find-arg-in-act content :to))
+	       (let ((task (caar record))
+		     (bndgs (caadr (car record))))
+		 (if (eq status 'acceptable)
+		     ;; the question is satisfied, we pop the clarificaiton task after
+		     ;;  installing the answer below
+		     (bind-top-task bndgs)
+		     ))
+	       ))
+	    
+	    )))))
+	   
 (defun what-next (msg args)
-  (let* ((active-goal-id-in-msg (find-arg args :active-goal))
-	 (what-i-think-is-active-goal (planner-state-content *active-goal*))
-	 (active-goal (get-goal-with-id what-i-think-is-active-goal)))
-    (if (not (and (eq active-goal-id-in-msg what-i-think-is-active-goal)
-		  (goal-p active-goal)))
-	(format t "~%~%ERROR - goals don't match: ~S and ~S" active-goal-id-in-msg what-i-think-is-active-goal)
-
-	(progn
-	  (trace-msg 2 "~% Continuing planning on goal ~S" active-goal)
-	  (continue-planning active-goal)
-	  )
-	  #||;; not sure this following is ever used -- the value would be installed at the COMMIT
-	  ((find-arg args :to)
-	   ;; we have a question
-	   (let* ((act-parameter (get-parameter-being-clarified (find-arg args :to)))
-		  (act (car act-parameter))
-		  (parameter (cadr act-parameter))
-		  (value (extract-value (find-arg args :value) (find-arg args :context))))
-	     
-	     ))||#
-	  )))
-						 
-(defun find-lf-in-context (context id)
+  (if (top-of-task-stack)
+      (let* ((active-goal-id-in-msg (find-arg args :active-goal))
+	     (active-goals (mapcar #'task-id *task-stack*))
+	     (context (find-arg args :context))
+	     )
+	(if (not (member active-goal-id-in-msg active-goals))
+	    ;; the goal must have been popped off the stack, so we indicate it is done
+	  (progn
+	    (format t "~%~%WARNING - goal ~S doesn't match active goals ~S. Returning that ~S is done" active-goal-id-in-msg active-goals active-goal-id-in-msg)
+	    `(REPORT :content (EXECUTION-STATUS :goal ,active-goal-id-in-msg
+						:status ONT::DONE :silent T))
+	    )
+	  (or (what-next-in-task (top-of-task-stack) context)
+	      (progn (trace-msg 2 "   Nothing to do - so we wait ...")
+		     '(REPORT :content (WAIT)))
+	      )))
+      `(REPORT :content (FAILURE :what `(find-arg args :active-goal) :reason No-TASK-KNOWN))
+      ))
+      
+  
+(defun find-lf-in-context (id context)
   (find id context :key #'cadr))
 
-(defun find-lf-in-context-tmp (context id)  ; id not used
-  (find-if #'(lambda (x) (member (find-arg x :instance-of)
-				 '(ONT::CREATE ONT::PUT-B6-ON-THE-TABLE ONT::Please-put-B7-on-B6 ONT::PUT
-				   ONT::EXECUTE)))
-		 context))
 
 (defun restart-cwms-if-not-from-myself (msg)
   (let ((sender (find-arg-in-act msg :sender)))

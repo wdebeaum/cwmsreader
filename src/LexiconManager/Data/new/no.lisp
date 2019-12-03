@@ -79,7 +79,7 @@
  :words (
   (W::NO
    (SENSES
-    ((LF (ONT::NEG))
+    ((LF ONT::NEG)
      (non-hierarchy-lf t)(SYNTAX (W::SA ONT::SA_RESPONSE))
      )
     )
@@ -90,7 +90,7 @@
  :words (
   ((W::no W::way)
    (SENSES
-    ((LF (ONT::NEG))
+    ((LF ONT::NEG)
      (non-hierarchy-lf t)(SYNTAX (W::SA ONT::SA_RESPONSE))
      )
     )
@@ -101,10 +101,33 @@
  :words (
   ((W::no W::thanks)
    (SENSES
-    ((LF (ONT::NEG))
+    ((LF ONT::NEG)
      (non-hierarchy-lf t)(SYNTAX (W::SA ONT::SA_RESPONSE))
      )
     )
    )
 ))
 
+(define-words :pos W::adv :templ DISC-PRE-TEMPL
+ :words (
+  ((W::NO W::MORE W::THAN)
+   (SENSES
+    ((LF-PARENT ONT::QMODIFIER)
+     (LF-FORM W::MAX)
+     (TEMPL NUMBER-OPERATOR-TEMPL)
+     )
+    )
+   )
+))
+
+(define-words :pos W::adv :templ DISC-PRE-TEMPL
+ :words (
+  ((W::NO W::LESS W::THAN)
+   (SENSES
+    ((LF-PARENT ONT::QMODIFIER)
+     (LF-FORM W::MIN)
+     (TEMPL NUMBER-OPERATOR-TEMPL)
+     )
+    )
+   )
+))

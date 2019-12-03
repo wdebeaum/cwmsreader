@@ -2,7 +2,7 @@
 ;;;; W::bounce
 ;;;;
 
-(define-words :pos W::v :templ AGENT-AFFECTED-XP-TEMPL
+(define-words :pos W::v :TEMPL AGENT-AFFECTED-XP-NP-TEMPL
  :words (
   (W::bounce
    (SENSES
@@ -12,10 +12,14 @@
      (PREFERENCE 0.96)
      )
     ((meta-data :origin calo :entry-date 20040916 :change-date nil :comments caloy2 :vn ("roll-51.3.1") :wn ("bounce%2:35:03" "bounce%2:38:00" "bounce%2:38:02"))
-     (LF-PARENT ONT::move-up-and-down)
+     (LF-PARENT ONT::bounce-reflect)
      (example "the ball bounced")
      (SEM (F::Aspect F::bounded) (F::Time-span F::atomic))
-     (TEMPL affected-templ)
+     (TEMPL affected-unaccusative-templ)
+     )
+    ((LF-PARENT ONT::bounce-reflect)
+     (example "he bounced the ball")
+     (TEMPL AGENT-AFFECTED-XP-NP-TEMPL)
      )
     )
    )

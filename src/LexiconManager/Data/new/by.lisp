@@ -42,7 +42,7 @@
 
     
     ((LF-PARENT ONT::BY-MEANS-OF)
-     (TEMPL BINARY-CONSTRAINT-S-subjcontrol-TEMPL)
+     (TEMPL BINARY-CONSTRAINT-S-OR-NP-subjcontrol-TEMPL)
      (EXAMPLE "he killed it by immersing it in water")
      )
     ;;;;; ont::via requires a point or region
@@ -60,8 +60,7 @@
       (PREFERENCE .98)
      )
 
-    ((LF-PARENT ONT::event-time)
-     (LF-FORM W::BY)
+    ((LF-PARENT ONT::BEFORE)
      (example "by the time he arrived it was too late")
      (TEMPL BINARY-CONSTRAINT-S-OR-NP-TEMPL
 	    (xp (% W::NP (W::case (? cas W::obj -)) (w::gerund -)

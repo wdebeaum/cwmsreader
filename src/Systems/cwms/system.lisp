@@ -16,7 +16,9 @@
   (:dfc-component       :im                #!TRIPS"src;NewIM;")
   (:dfc-component       :dagent            #!TRIPS"src;BasicDialogueAgent;")
   (:dfc-component       :CWMSAgent     	   #!TRIPS"src;CWMSAgent;")
-  (:dfc-component       :dummy     	   #!TRIPS"src;Dummy;")
+  ;;(:dfc-component       :dummy     	   #!TRIPS"src;Dummy;")
+  (:dfc-component       :pdflearn          #!TRIPS"src;PDFLearn;")
+  (:dfc-component	:deepsemlex	   #!TRIPS"src;DeepSemLex;code;lib;")
   )
 
 ;; add WebParser to the system when we have its source directory
@@ -26,20 +28,24 @@
 
 ;; Now load the system
 (trips:load-trips-system)
+;; this isn't part of a lisp component so we load it separately
+(load #!TRIPS"src;TextTagger;cwms-dsl-resources.lisp")
 
 ;; domain preferences
-(load "domain-sense-preferences")
-(load "domain-words.lisp")
+(load #!TRIPS"src;Systems;cwms;domain-sense-preferences")
+(load #!TRIPS"src;Systems;cwms;domain-words.lisp")
 
-;;;; extractor rules
-(load "preprocessRules.lisp")
-(load "cwmsRules.lisp")
-(load "DRUMRules_ev.lisp")
-(load "cwmsRules_ev_add.lisp")
-(load "DRUMRules_mod.lisp")
-(load "cwmsRules_CC.lisp")
-(load "postprocessRules.lisp")
-(load "symbolmapping.lisp")
+;;;; extractor rules: used in cwmsreader but not cwms
+(load #!TRIPS"src;Systems;cwms;preprocessRules.lisp")
+(load #!TRIPS"src;Systems;cwms;cwmsRules.lisp")
+(load #!TRIPS"src;Systems;cwms;DRUMRules_ev.lisp")
+(load #!TRIPS"src;Systems;cwms;cwmsRules_ev_add.lisp")
+(load #!TRIPS"src;Systems;cwms;DRUMRules_mod.lisp")
+(load #!TRIPS"src;Systems;cwms;cwmsRules_CC.lisp")
+(load #!TRIPS"src;Systems;cwms;postprocessRules.lisp")
+(load #!TRIPS"src;Systems;cwms;postprocessRules_F.lisp")
+(load #!TRIPS"src;Systems;cwms;symbolmapping.lisp")
+
 (setq im::*symbol-map* (append im::*symbol-map* '((ONT::QUANTITY-ABSTR ONT::QTY)
 						  (ONT::OBJECTIVE-INFLUENCE ONT::INFLUENCE im::-rule5_3_AGENT_AFFECTED)
 						  )))
@@ -52,7 +58,7 @@
 ;; if you need to use either of the following Dummy features, uncomment them
 ;; LOCALLY, but please do not commit without comments!
 
-(load #!TRIPS"src;Systems;cwms;dummymessages.lisp")
+;;(load #!TRIPS"src;Systems;cwms;dummymessages.lisp")
 
 (defun parse-eval (x)
   (im::send-msg `(request :receiver parser :content (eval ,x))))

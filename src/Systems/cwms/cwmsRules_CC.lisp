@@ -124,6 +124,17 @@
 	    :ASSOC4 ?!ev3
 	    )
 	   )
+
+          ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; statives ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+          (((? !reln ONT::EVENT ONT::TERM ONT::EPI ONT::CC) ?ev (? type ONT::EVENT-OF-STATE))
+	   (?reln2 ?ev2 ?type2)  ; fluff so it matches as many clauses as the other rules
+	   ;(?reln3 ?ev3 ?type3)  ; I hope this doesn't compete with the CC rules
+           -stative>
+           90
+	   (ONT::EVENT ?ev ?type
+	    :rule -stative
+	    )
+          )
 	  
           ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; INEVENT ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 	  
@@ -181,7 +192,51 @@
 	    )
 	   )
 
+	  ;;;;;;
+	  ; the preexisting INEVENT could be from, e.g., pTyr176-AKT (-phospho2b>)
+          ((?reln ?ev ?type :MODS (?!ev2) :INEVENT ?!ev3)  
+	   (ONT::EVENT ?!ev2 ?type2)
+	   (?reln2b ?ev2b ?type2b)
+           -inevent4-ev>
+           100
+	   (?reln ?ev ?type
+	    :rule -inevent4-ev
+	    :INEVENT ?!ev2
+	    :INEVENT ?!ev3
+	    )
+          )
+
 	  
+	  ; NRAS, expressed by GTP, binds BRAF.	  	  
+	  ; RAF-bound BRAF that is not bound to Vemurafenib phosphorylates MAP2K1. (need to return *two* INEVENT slots)
+          ((?reln ?ev ?type :MODS (?!ev2 ?ev2b))  ; note optional ?ev2b
+	   (ONT::EVENT ?!ev2 ?type2)
+	   (ONT::EVENT ?ev2b ?type2b)
+           -inevent2-ev>
+           100
+	   (?reln ?ev ?type
+	    :rule -inevent2-ev
+	    :INEVENT ?!ev2
+	    :INEVENT ?ev2b
+	    )
+          )
+
+	  ; Need this rule in addition to -inevent2 because some MODs (e.g., "active") are not EVENT/CC
+	  ; Active MAP2K1 that is not bound to PP2A-alpha phosphorylates MAPK1. 
+          ((?reln ?ev ?type :MODS (?!ev2))  
+	   (ONT::EVENT ?!ev2 ?type2)
+;	   ((? reln2b ONT::EVENT ONT::CC) ?ev2b ?type2b)
+           -inevent2b-ev>
+           100
+	   (?reln ?ev ?type
+	    :rule -inevent2b-ev
+	    :INEVENT ?!ev2
+;	    :INEVENT ?ev2b
+	    )
+	   )
+	  
+
+	  ;;;;;;;;;;;;;;;;;;;;;;
 	  ; This doesn't fire anymore?  But if it does, we need to consider two INEVENTs here (e.g., Raf-bound NRAS, bound to GTP, binds BRAF, but this is now parsed as two :MODs)
 	  ; NRAS, bound to GTP, binds BRAF.
           ((?reln ?ev ?type :PARENTHETICAL ?!ev2)

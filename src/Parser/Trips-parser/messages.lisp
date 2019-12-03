@@ -57,8 +57,11 @@ OFFLINE requests.")
   (let ((augmented-acts (insert-preparses acts)))
     (send-msg `(tell :content ,(if (= (number-parses-desired *chart*) 1)
 				   (list 'new-speech-act (car augmented-acts))
-				   (list 'new-speech-act-hyps augmented-acts)))))
-    (when (eq *in-system* :plow)
+				   (list 'new-speech-act-hyps
+					 (subseq augmented-acts 0 (min (number-parses-desired *chart*)
+								       (number-parses-to-find *chart*)
+								       (list-length augmented-acts))							       ))))))
+  (when (eq *in-system* :plow)
     (send-msg '(request :content (trafficlight green)))) 
   )
 
@@ -77,6 +80,18 @@ OFFLINE requests.")
 	   (get-keyword-arg (cdr l) key)))
 	(t
 	 nil)))
+
+(defcomponent-handler
+  '(request &key :content (parse-text . *))
+  #'(lambda (msg args)
+       (output (apply #'parse-text args)))
+  :subscribe t)
+
+(defcomponent-handler
+  '(request &key :content (parse-and-extract . *))
+  #'(lambda (msg args)
+       (reply-to-msg msg 'reply :content (list 'answer (apply #'parse-and-extract args))))
+  :subscribe t)
 
 
 (defcomponent-handler

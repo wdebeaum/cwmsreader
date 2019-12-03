@@ -1,7 +1,7 @@
 ;;;;
 ;;;; robust.lisp
 ;;;;
-;;;; Time-stamp: <Fri Apr  7 15:21:36 EDT 2017 jallen>
+;;;; Time-stamp: <Wed Nov 13 12:42:03 EST 2019 james>
 ;;;;
 
 (in-package :W)
@@ -17,8 +17,8 @@
     
     ;; CP with no GAP to have a dream
     ((definition (var ?v)  (lf ?lf))
-      -defn-no-gap> .97
-     (head (cp (var ?v) (lf ?lf) (subj-map ?!s) (ctype (? x w::s-to)) ;; make sure there's a subj-map (avoid parses for "there is" etc)
+      -defn-no-gap> .985
+     (head (cp (var ?v) (lf ?lf) (subj-map (? !s ONT::NOROLE)) (ctype (? x w::s-to)) ;; make sure there's a subj-map (avoid parses for "there is" etc)
 	       (subj (% ?xx (sem ?subjsem)))
       (subjvar (% *PRO* (var *) (class ont::ROLE-REF) (sem ?subjsem) (constraint (& (:context-rel :lsubj)))))
       (gap -)
@@ -31,11 +31,26 @@
 	       (subj (% ?xx (sem ?subjsem)))
 	       (dobj (% ?yy (sem ?dobjsem)))
 	       (subjvar (% *PRO* (var *) (class ont::ROLE-REF) (sem ?subjsem) (constraint (& (:context-rel :lsubj)))))
-	       (gap (% NP (gap -)
+	       (gap (% (? x NP PP) (gap -)
 			(var (% *PRO* (var **) (class ont::ROLE-REF) (sem ?dobjsem)
 				(constraint (& (:context-rel :dobj)))))))
 		)))
 
+    ;; CP passive with gap, e.g., to be eaten by
+    ((definition (var ?v) (lf ?lf))
+      -defn-passive-gap> 
+     (head (cp (var ?v) (lf ?lf)
+	       (subj (% ?xx (sem ?subjsem)))
+	       (dobjvar -)
+	       (subjvar (% *PRO* (var *) (class ont::ROLE-REF) (sem ?subjsem) (constraint (& (:context-rel :lsubj)))))
+	       (comp3 (% ?comp3 (sem ?compsem)))
+	       (gap (% (? xx NP PP) (gap -)
+			(var (% *PRO* (var **) (class ont::ROLE-REF) (sem ?compsem)
+				(constraint (& (:context-rel :lcomp)))))))
+	       (passive +)
+		)))
+    
+    
     ;;  making bread, make bread   (no gap in VP)
     ((definition (var ?v) (lf ?lf))
       -defn-ing>
@@ -50,10 +65,10 @@
       -defn-ing-GAP>
      (head (vp (var ?v) (lf ?lf) (vform (? vf w::ing w::base))
 	       (subj (% ?xx (sem ?subjsem)))
-	       (dobj (% ?yy (sem ?dobjsem)))
+	       ;(dobj (% ?yy (sem ?dobjsem)))
 	       (subjvar (% *PRO* (var *) (class ont::ROLE-REF) (sem ?subjsem)
 			   (constraint (& (:context-rel :lsubj)))))
-	       (gap (% NP (gap -) (sem ?dobjsem)
+	       (gap (% NP (gap -) ;(sem ?dobjsem)
 		       (var (% *PRO* (var **) (class ont::ROLE-REF) (constraint (& (:context-rel :dobj))))))))
 	       ))
 
@@ -117,8 +132,10 @@
 
     ((NP (SORT PRED) (generated +) (var *) (class ?class) (agr ?agr)
       (LF (% Description (Status PRO) (var *) (Sort Individual)
-	     (class ?class) (lex ?l) (sem ?sem)  ;; LEX used to be ?fname, but this isn't used any more  JFA 5/04
-	     (constraint (& (:proform ont::something) (:like ?v)))
+	     (class ONT::REFERENTIAL-SEM) ;(class ?class)
+	     (lex ?l)   ;; LEX used to be ?fname, but this isn't used any more  JFA 5/04
+	     (sem ($ ?s (f::type ONT::REFERENTIAL-SEM))) ;(sem ?sem)
+	     (constraint (& (:proform w::something) (:like ?v)))
 	     )))
      -arg-in-paren>
      (punc (lex w::start-paren))

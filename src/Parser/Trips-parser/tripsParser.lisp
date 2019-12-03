@@ -546,7 +546,16 @@
 	(cons (car starts)
 	      (remove-dups (cdr starts) (union (caar starts) seen))))))
     
-     
+
+(defun eliminate-stoplist-senses (sense)
+  (let* ((wnsenses (find-value sense :wn-sense-keys))
+	 (reduced-wnsenses (remove-if #'wf::stoplist-p wnsenses)))
+    (if (null reduced-wnsenses)
+	(remove-arg sense :wn-sense-keys)
+	(if (< (list-length reduced-wnsenses) (list-length wnsenses))
+	    (replace-arg sense :wn-sense-keys reduced-wnsenses)
+	    sense))
+    ))
 
   
 ;; ========================
@@ -584,7 +593,11 @@
 	 ;; (score (find-value in :score))
 	 (prob (find-value in :prob))
 	 (sense-info (find-value in :sense-info))
+	 (reduced-sense-info (remove-if #'null (mapcar #'(lambda (x) (eliminate-stoplist-senses x))
+						       sense-info)))
+	 ;;(xx (format t "~%wnsenses are ~S then ~S" sense-info reduced-sense-info))
 	 (alternative (find-value (car sense-info) :alternate-spellings))
+	 
 	 (reduced-features (remove-args (cddr in) '(:start :end)));; :prob)))
 	 (word (if (and (consp new-tokens) (eq number-of-tokens  1))
 		   (car new-tokens)
@@ -603,7 +616,8 @@
 	  (cond 
 	    (sense-info   ;; if the sense-info is defined, its a single lexical item even if multiple words)
 	     ;; we also remove the under-bars which might have been introduced from sources of compound words, like WordNet
-	     (list (list* 'word (if (consp word) (remove-if #'(lambda (x) (eq x 'w::UNDER-BAR)) word) word) :start start :end end :prob prob reduced-features)))
+	     (list (list* 'word (if (consp word)
+				    (remove-if #'(lambda (x) (eq x 'w::UNDER-BAR)) word) word) :start start :end end :prob prob reduced-features)))
 	    ((< span-length number-of-tokens)
 	     ;;  ERROR condition: more tokens that can fit between frame numbers
 	     ;;    we ignore the end index after generatingan error message
@@ -640,7 +654,8 @@
 	  ;;(if alternatives
 	  ;;    (handle-first-word tokens start end prob score feats filter)
 	  (let* ((word (car tokens))
-		 (newend (if (cdr tokens) (floor (+ start (/ (- end start) 2)))
+		 (newend (if (cdr tokens)
+			     (compute-end-position start word);;(floor (+ start (/ (- end start) 2)))
 			     end)))
 	    (if (> newend start)
 		(cons (list* 'word word :start start :end newend :prob prob others)
@@ -654,6 +669,13 @@
 	(format t "~%~% Error is tokenization found (start > end!):start=~S end=~S tokens= ~S" start end tokens)
 	nil)))
 
+(defun compute-end-position (start word)
+  (cond ((symbolp word)
+	 (+ start (list-length (coerce (symbol-name word) 'list)) 1))
+	((numberp word)
+	 (+ start (list-length (coerce (format nil "~A" word) 'list)) 1))
+	(t (+ start 1))))
+	 
      
 
 ;; ==============================================
@@ -1023,6 +1045,7 @@
     (let* ((constit (car constit-tree))
 	   (lf (get-value constit 'w::lf))
 	   (lex (get-value constit 'W::lex))
+	   (orig-lex (get-value constit 'W::orig-lex))
 	   (sem (get-value constit 'w::sem))
 	   (input (get-value constit 'w::input))
 	   (notes (get-value constit 'w::notes))
@@ -1030,14 +1053,18 @@
       (unless (or (null var) (assoc var (get-temp-symbol-table)))
 	(multiple-value-bind (new-lf pros)
 	    (remove-*pro*-from-lf lf)
-	  (add-to-temp-symbol-table var (if (constit-p new-lf) 
-					    (replace-sem-in-lf
-					     (add-feature-value
-					      (add-feature-value new-lf 'w::input input)
-					      'w::lex
-					      lex)
-							 sem)
-					    new-lf))
+	  (add-to-temp-symbol-table
+	   var
+	   (if (constit-p new-lf)
+	       (let* ((new-lf2 (add-feature-value
+				(add-feature-value new-lf 'w::input input)
+				'w::lex	lex))
+		      (new-lf3 (if (not (member orig-lex '(nil -)))
+				   (add-feature-value new-lf2 'w::orig-lex orig-lex)
+				 new-lf2)))
+		 (replace-sem-in-lf new-lf3 sem))
+	     new-lf))
+	     
 	  ;; if there were *PRO* objects found, add them too
 	  (if pros
 	      (mapc #'(lambda (x)

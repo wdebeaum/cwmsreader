@@ -63,7 +63,8 @@
 
 (defun entry-is-solely-abstract (entry)
   (let ((lfs (find-arg-in-act entry :LFS)))
-    (NOT (set-difference lfs '(ONT::MODIFIER ONT::SITUATION-ROOT ONT::PHYS-OBJECT ONT::ABSTRACT-OBJECT ONT::REFERENTIAL-SEM ONT::SPEECH-ACT ONT::ANY-TIME-OBJECT ONT::ANY-SEM ONT::PREDICATE)))))
+    ;(NOT (set-difference lfs '(ONT::MODIFIER ONT::SITUATION-ROOT ONT::PHYS-OBJECT ONT::ABSTRACT-OBJECT ONT::REFERENTIAL-SEM ONT::SPEECH-ACT ONT::ANY-TIME-OBJECT ONT::ANY-SEM ONT::PREDICATE)))))
+    (NOT (set-difference lfs '(ONT::PROPERTY-VAL ONT::SITUATION-ROOT ONT::PHYS-OBJECT ONT::ABSTRACT-OBJECT ONT::REFERENTIAL-SEM ONT::SPEECH-ACT ONT::ANY-TIME-OBJECT ONT::ANY-SEM ONT::PREDICATE)))))
 
 (defun get-unknown-word-def (w &key (senselimit *wf-sense-limit*) pos-list penntag ont-sense-tags trips-sense-list wn-sense-keys score)
  ;; (when (and (not *no-wf-senses-for-words-tagged-with-ont-types*) (null ont-sense-tags))
@@ -74,7 +75,7 @@
 	      (create-fake-WF-result-from-ont-type w ont-sense-tags pos-list score)))
 	 (wf-entry (and wf-string (stringp wf-string) (read-from-string wf-string)))
 	 senselist res)
-    (print-debug "WF returns ~S~%" wf-entry )
+    (print-debug "WF retrieval yields ~S~%" wf-entry )
     
     ;; filter these if we are filtering by ont::type
     (when (and (found-wordp wf-entry) (not (null wf-entry)))
@@ -90,7 +91,8 @@
 	    #||  ;; check for hidden names: tagged as N, not penn taged as NNS and starts with a capital  (not sure what problem this solved - isit obsolete?)
 	      (if (and (eq pos 'w::n) (not (member 'w::nns penntag))
 		       (is-instance this-wf-entry)) (setq pos 'w::name))||#
-	      (let* ((score (get-wf-score this-wf-entry))
+	      (let* ((wfscore (get-wf-score this-wf-entry))
+		     (score (if score (/ (+ wfscore score) 2) wfscore))
 		     (feats (get-wf-feats this-wf-entry))
 		     (wf-word (get-wf-word this-wf-entry))
 		     (domain-info (get-wf-domain-info this-wf-entry))
@@ -120,7 +122,7 @@
 			     (eq (cadr word) (vocabulary-entry-particle (third x)))))
 			 (getworddefs (car word) *lexicon-data*))
       (getworddefs word *lexicon-data*)))
-      
+
 (defun get-senses-for-words (w words-to-replicate lf pos)
   (let (filtered-words templates-to-replicate senses-to-replicate)
     (dolist (word-pair words-to-replicate)
@@ -138,19 +140,24 @@
 	      (if (eq (sense-definition-lf-parent sense) lf)
 		  (pushnew (list (sense-definition-templ sense) (sense-definition-params sense)) templates-to-replicate  :test #'equal))
 	      )))))
-    ;; create the replicated senses
-    (print-debug "~% templates to replicate = ~S" templates-to-replicate)
-    (dolist (template templates-to-replicate)
-      (pushnew (make-sense-definition :pos pos :lf (list :* lf w) :nonhierarchy-lf nil
-								  :pref *no-kr-probability*
-								  :lf-form (if (listp w) (make-into-symbol w) w)
-								  :lf-parent lf
-								  :templ (first template)
-								  :params (second template)
-								  :boost-word nil) senses-to-replicate :test #'equal))
-    senses-to-replicate)
-  )
-
+    (if templates-to-replicate
+	(progn
+	  ;; create the replicated senses
+	  (print-debug "~% templates to replicate = ~S" templates-to-replicate)
+	  (dolist (template templates-to-replicate)
+	    (pushnew (make-sense-definition :pos pos :lf (list :* lf w) :nonhierarchy-lf nil
+					    :pref *no-kr-probability*
+					    :lf-form (if (listp w) (make-into-symbol w) w)
+					    :lf-parent lf
+					    :templ (first template)
+					    :params (second template)
+					    :boost-word nil) senses-to-replicate :test #'equal))
+	  senses-to-replicate)
+	;;  sense had no words associated with it, try a subtype
+	(let ((children (om::get-children lf)))
+	  (when children
+	    (get-senses-for-words w (get-words-from-lf (car children)) (car children) pos) 
+	)))))
 
 (defun make-default-sense (w lf pos)
   (let ((lfform (if (listp w) (make-into-symbol w) w))
@@ -264,10 +271,10 @@
 	   (w::AGR (? agr (w::1S w::2S w::3S w::1P w::2P w::3P)))))
 	((and (member 'w::VB penn-tags) (member 'w::VBP penn-tags))
 	 '((w::VFORM (? vf (w::BASE w::PRES)))
-	   (w::AGR (? agr (w::1S w::2S w::1P w::2P w::3P)))))
+	   (w::AGR (? agr (w::1S w::2S w::3s w::1P w::2P w::3P)))))
 	((and (member 'w::VBD penn-tags) (member 'w::VBN penn-tags))
 	 '((w::VFORM (? vf (w::PAST w::PASTPART)))
-	   (w::AGR (? agr (w::1S w::2S w::1P w::2P w::3P)))))
+	   (w::AGR (? agr (w::1S w::2S w::3s w::1P w::2P w::3P)))))
 	;; individual tags
 	((case (base-penn-tag penn-tags)
     ;  EX   (PRO)	; Existential there
@@ -426,16 +433,18 @@
 	;			(eq (second (fourth x)) 'w::word))
 	;		     (get-word-def w nil)))
 	 (entries (remove-if-not #'(lambda (x)
-				(eq (second (fourth x)) 'w::n))
-			     (get-word-def w nil)))
-	 (c (cddr (fourth (first entries))))
+				     (and (eq (second (fourth x)) 'w::n)
+					  (equal (second x) w))) ; remove multi-words that are returned with the single word lookup
+				 (get-word-def w nil)))
+	 (entries-sorted (sort entries #'> :key #'third))
+	 (c (cddr (fourth (first entries-sorted))))
 	 (lf (parser::get-fvalue c 'w::lf)))
     (second lf)))
     
 (defun make-unknown-word-entry (word pos score feats wid lflist trips-sense-list penn-tag tagged-ont-types domain-info)
   "make an underspecified lexical entry for the unknown word"
     (declare (ignore tagged-ont-types))
-  (print-debug  "~%MAKE-UNKNOWN-WORD-ENTRY: generating word entry for ~S with ~S and ~S ~%" word pos lflist)
+  ;;(print-debug  "~%MAKE-UNKNOWN-WORD-ENTRY: generating word entry for ~S with ~S and ~S ~%" word pos lflist)
   (let* ((lfform (if (listp word) (make-into-symbol word) word))
 	(lf (car lflist))
 	(pos (if (listp pos) (car pos) pos))
@@ -496,7 +505,7 @@
 	     ;;(setq feats (append feats (list (list 'w::pertainym (list (list :* pert-lf pert-lf-form) pert-sem)))))
 	     (setq feats (append feats (list (list 'w::pertainym (list :* pert-lf (car pert-lf-form)))
 					     (list 'w::pert-domain-info pert-domain-info))))
-	     (if (member lf '(ONT::MODIFIER ONT::REFERENTIAL-SEM))
+	     (if (member lf '(ONT::PROPERTY-VAL MODIFIER ONT::REFERENTIAL-SEM)) ;'(ONT::MODIFIER ONT::REFERENTIAL-SEM))
 		 ;(setq lf '(:* ONT::ASSOC-WITH lf-form))
 		 (setq lf 'ONT::ASSOC-WITH)
 	       )
@@ -524,9 +533,9 @@
 						      (W::SEM ?argsem)))
 					;(w::argument ?argument)
 				      (w::argument-map ont::figure)
-				      (w::atype (? atype w::central w::postpositive))
+				      (w::atype ?type) ;;(? atype w::central w::postpositive))
 				      (w::sort w::pred)
-				      (w::allow-deleted-comp +)
+				      ;;(w::allow-deleted-comp +)
 				      (w::post-subcat ?postsub)
 				      (w::set-modifier ?setmod)
 				      (w::filled ?filled)
@@ -551,7 +560,7 @@
        (setq res (create-entry-based-on-entries-of-the-same-type word wid lf lfform sem syntax pos trips-sense-list domain-info score))
        ))
       (w::adv
-       (setq replica-entry (make-replica-entry word lf pos '(ont::modifier)))
+       (setq replica-entry (make-replica-entry word lf pos '(ont::property-val))) ;'(ont::modifier)))
 ;       (setq sem (get-lf-sem lf :no-defaults nil ))
 ;       (setq lf (list :* lf lfform))
        (setq syntax (append feats `((w::gap ?gap)
@@ -583,7 +592,7 @@
      ;; if we failed to make an entry above, we do a generic one here
      
      (when (not res) ;; (find pos '(w::v w::adv w::name w::n))) 
-       (print-debug "making word sense for word ~S with pos ~S lf ~S sem ~S domain-info ~S~%" word pos lf sem domain-info)
+       (print-debug "making word sense for word ~S with pos ~S lf ~S sem ~S ~%     score=~S domain-info ~S~%" word pos lf sem score domain-info)
        (let* ((entry (make-word-sense-definition
 		      :name wid
 		      :pos pos
@@ -619,7 +628,7 @@
   (let ((this-entry (make-replica-entry word lf pos trips-sense-list))
 	sense-defs maps res roles)
 	 (when this-entry
-	   (print-debug "generating senses for entry ~S~%" this-entry)
+	  ;; (print-debug "generating senses for entry ~S~%" this-entry)
 	   (setq sense-defs (make-word-sense-definitions this-entry (lexicon-db-synt-table *lexicon-data*)))
 	   (when sense-defs
 	     (dolist (this-sense sense-defs)
@@ -627,7 +636,7 @@
 	       (setq roles (word-sense-definition-roles this-sense))
 	       (if (consistent-features (word-sense-definition-syntax this-sense) syntax)
 		   (let* ((new-entry (make-word-sense-definition
-				      :name wid
+				      :name (gentemp (symbol-name wid))
 				      :pos pos
 				      :lf `(:* ,lf ,lfform)
 				      :sem sem
@@ -853,6 +862,7 @@
       (find w '(w::myself w::yourself w::himself w::herself w::itself w::ourself w::ourselves w::yourselves w::themself w::themselves w::self w::whoever w::whomever w::whatever w::whenever w::however w::whose w::whom))
       (find w '(w::today w::yesterday w::tomorrow w::tonight w::tonite w::now w::then w::sometime w::sometimes w::anytime w::yet w::until))
       (find w '(w::yes w::no w::maybe w::probably w::certainly))
+      (find w '(w::january w::february w::march w::april w::may w::june w::july w::august w::september w::october w::november w::december w::jan w::feb w::mar w::apr w::jun w::jul w::aug w::sep w::oct w::nov w::dec))
   ))
 
 

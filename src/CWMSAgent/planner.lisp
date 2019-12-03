@@ -255,6 +255,7 @@
       ;;(break "finished install parameter value in plan: plress 0 to continue")
       )))
 
+
 ;;  Here's the top eval CPS planning algorithm 
 ;;    Each different CPS goal has a cusotmized strategy
 
@@ -490,12 +491,12 @@
     (if graph
 	(progn
 	  (put-up-display graph)
-	  (return-tell-act-to-do 'this-is-what-i-know))
+	  (return-tell-act-to-do 'this-is-what-i-know active-goal nil))
 	(return-tell-act-to-do 'know-nothing active-goal 'ont::ebola))))
 
 (defun add-link (active-goal)
   (add-arc-to-display 'V62286 'V69716 'causes)
-  (return-tell-act-to-do 'remeber-that active-goal 'ont::ebola)
+  (return-tell-act-to-do 'remember-that active-goal 'ont::ebola)
   )
       
 
@@ -507,7 +508,7 @@
 	result))))
 
 (defun put-up-display (graph)
-  (send-and-wait `(request :receiver graphdisplay :content
+  (send-msg `(request :receiver graphdisplay :content
 			   (display-ekb :ekb ,graph))))
 
 (defun add-arc-to-display (source goal label)

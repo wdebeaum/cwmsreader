@@ -2,7 +2,7 @@
 ;;;; W::pick
 ;;;;
 
-(define-words :pos W::v :templ AGENT-THEME-XP-TEMPL
+(define-words :pos W::v :TEMPL AGENT-FORMAL-XP-TEMPL
  :words (
 ((W::pick (w::out))
  (SENSES
@@ -15,32 +15,33 @@
    )
 ))
 
-(define-words :pos W::v :templ AGENT-THEME-XP-TEMPL
+(define-words :pos W::v :TEMPL AGENT-FORMAL-XP-TEMPL
  :words (
   (W::pick
    (SENSES
     ((LF-PARENT ONT::SELECT)
      (SEM (F::Cause F::agentive) (F::Aspect F::bounded) (F::Time-span F::atomic))
-     (PREFERENCE 0.95)
+     ;(PREFERENCE 0.95)
+     (templ agent-neutral-xp-templ)
      (example "pick the route")
      )
     ((meta-data :origin plow :entry-date 20060531 :change-date nil :comments nil)
      (LF-PARENT ONT::SELECT)
      (SEM (F::Aspect F::bounded) (F::Time-span F::atomic))
      (EXAMPLE "pick red")
-     (templ agent-theme-pred-templ)
-     (preference .95)
+     (TEMPL AGENT-FORMAL-TEMPL)
+     ;(preference .95)
      )
     )
    )
 ))
 
-(define-words :pos W::v :templ AGENT-affected-XP-TEMPL
+(define-words :pos W::v :TEMPL AGENT-AFFECTED-XP-NP-TEMPL
  :words (
   ((W::pick (W::up))
    (SENSES
     ;;;; swier -- pick up the oranges.
-    ((LF-PARENT ont::pickup)
+    ((LF-PARENT ont::acquire)
      (SEM (F::Cause F::agentive) (F::Aspect F::bounded) (F::Time-span F::atomic))
      (prototypical-word t)
      )

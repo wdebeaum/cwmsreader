@@ -15,17 +15,17 @@ var {
 <body>
 <h1>Spaceman</h1>
 William de Beaumont<br>
-$Date: 2018/07/11 14:20:43 $
+$Date: 2019/09/12 17:04:41 $
 
 <h2>Introduction</h2>
-<p>Spaceman is a TRIPS module that turns language-derived descriptions of spatial locations (such as names of countries) into descriptions that explicitly specify which points on the Earth's surface are inside or outside those locations, in raster (e.g. GTiff) or vector (e.g. GeoJSON) formats. In some cases it can instead output standard codes (e.g. ISO country codes). It can make use of IMPACT data for names of countries, basins, and food production units (FPUs), and it can make use of ISO data for names of countries. Failing that, it can use <a href="https://www.openstreetmap.org/">OpenStreetMap</a>.</p>
+<p>Spaceman is a TRIPS module that turns language-derived descriptions of spatial locations (such as names of countries) into descriptions that explicitly specify which points on the Earth's surface are inside or outside those locations, in raster (e.g. GTiff) or vector (e.g. GeoJSON) formats. In some cases it can instead output standard codes (e.g. ISO country codes). It can make use of IMPACT data for names of countries, basins, and food production units (FPUs), and it can make use of ISO data for names of countries. Failing that, it can use <a href="https://www.openstreetmap.org/">OpenStreetMap</a>. It can also fetch and manipulate human-friendly map images from OpenStreetMap.</p>
 
 <p>In this document, computer code is displayed like <code>this</code>, and variables like <code><var>this</var></code>. Optional parts are within square brackets <code>[ ]</code>, and alternatives are separated by pipes within curly braces <code>{ | | }</code>.</p>
 
 <h2>Prerequisites</h2>
 <p>You will need to install <a href="https://www.nodejs.org/">Node.js</a> and its package manager <a href="https://www.npmjs.com/">npm</a> (which usually, but not always, is included with Node.js). You will also need to install <a href="http://www.gdal.org/">GDAL/OGR</a> and <a href="https://www.imagemagick.org/">ImageMagick</a>. If you are using <a href="https://www.macports.org/">MacPorts</a>, you can install all the prerequisites with this command:</p>
 <code><pre>
-  sudo port install nodejs8 npm5 gdal ImageMagick
+  sudo port install nodejs10 npm6 gdal ImageMagick
 </pre></code>
 <p>Note that which variants of <code>gdal</code> you install will affect what formats are available. You might wish to install it like this, for example:</p>
 <code><pre>
@@ -47,15 +47,17 @@ $Date: 2018/07/11 14:20:43 $
   <var>$TRIPS_BASE</var>/bin/Spaceman [ -connect { <var>host</var>:<var>port</var> | no } ]
 </pre></code>
 
-<p>Currently, Spaceman handles one type of KQML request:</p>
+<h3>The <code>get-geographic-region</code> request</h3>
+<p>This request can return an image or a box indicating which points are inside a described region, or a code or codes for that region:</p>
+
 <code><pre>
   (request :content (get-geographic-region
     :description <var>description</var>
-    :format { (raster "<var>format-name</var>" <var>width</var> <var>height</var>) | (vector "<var>format-name</var>") | (code "<var>standard-name</var>") }
+    :format { (raster "<var>format-name</var>" <var>width</var> <var>height</var>) | (vector "<var>format-name</var>") | (box "easting-northing") | (box "x-y" <var>width</var> <var>height</var>) | (code "<var>standard-name</var>") }
     ))
 </pre></code>
 
-<p>Both <code>:description</code> and <code>:format</code> are required. The <var>description</var> may be a string that names the region desired, or a more complex expression (see Complex Descriptions below). The <code>:format</code> argument specifies the desired format of the file or code to be returned, including the <var>width</var> and <var>height</var> in pixels in the case of <code>raster</code> formats. The <code>raster</code> and <code>vector</code> formats use equirectangular projection, see Coordinate Systems below for more details.</p>
+<p>Both <code>:description</code> and <code>:format</code> are required. The <var>description</var> may be a string that names the region desired, or a more complex expression (see Complex Descriptions below). The <code>:format</code> argument specifies the desired format of the file or code to be returned, including the <var>width</var> and <var>height</var> in pixels in the case of <code>raster</code> and x-y <code>box</code> formats. The <code>raster</code>, <code>vector</code>, and <code>box</code> formats use equirectangular projection, see Coordinate Systems below for more details.</p>
 
 <p>Supported <var>format-name</var>s include those that your installation of GDAL/OGR supports (passed to the <code>-of</code> option of <code>gdal_rasterize</code> or the <code>-f</code> option of <code>ogr2ogr</code>). These are listed on the GDAL/OGR website: <a href="http://www.gdal.org/formats_list.html">raster formats</a>; <a href="http://www.gdal.org/ogr_formats.html">vector formats</a>. Note that if the region you're looking up happens to come from OpenStreetMap, two additional vector formats are supported: <code>"SVG"</code> (which GDAL/OGR can read but not write) and <code>"WKT"</code> (Well-Known Text, apparently unknown to GDAL/OGR). That's because they come directly from OSM and don't need to be converted. But it is probably unwise to rely on this. For <code>raster</code> formats, ImageMagick extends the set of <var>format-name</var>s that can be used beyond what GDAL supports; Spaceman will first use <code>gdal_rasterize</code> to write a GTiff file, then use ImageMagick's <code>convert</code> to do the final conversion. ImageMagick's website also has a <a href="https://www.imagemagick.org/script/formats.php#supported">list of supported formats</a>. Note that the lists on these websites may include formats that your particular installations of these programs don't support; to see lists of formats that your installations support, use the following commands:</p>
 <code><pre>
@@ -66,7 +68,7 @@ $Date: 2018/07/11 14:20:43 $
 
 <p>Supported code <var>standard-name</var>s include "IMPACT", "ISO 3166-1 alpha-2" (or "ISO" for short), "ISO 3166-1 alpha-3", and "ISO 3166-1 numeric".</p>
 
-<p>Normally, the reply to this request looks like this:</p>
+<p>Normally, the reply to this request looks like this for <code>vector</code> and <code>raster</code> formats:</p>
 <code><pre>
   (reply :content (report :content (answer :location
     (file :name "<var>filename</var>" :format <var>format</var>))))
@@ -82,7 +84,20 @@ $Date: 2018/07/11 14:20:43 $
     )))
 </pre></code>
 
-<p>If <code>:format (code "<var>standard-name</var>")</code> is used instead of a <code>vector</code> or <code>raster</code> format, the reply will look like this:</p>
+<p>If <code>:format (box "easting-northing")</code> is used, the axis-aligned bounding box of the region is computed, and the reply will look like this:</p>
+<code><pre>
+  (reply :content (report :content (answer :location
+    (box <var>west-side-lon</var> <var>south-side-lat</var> <var>east-side-lon</var> <var>north-side-lat</var>))))
+</pre></code>
+<p>Note that this <code>:location</code> format is the same as the <code>box</code> shape atom.</p>
+
+<p>If <code>:format (box "x-y" <var>width</var> <var>height</var>)</code> is used, the reply is similar, except the coordinates are pixel coordinates in the corresponding <code>(raster "<var>format-name</var>" <var>width</var> <var>height</var>)</code> format (see Coordinate Systems).</p>
+<code><pre>
+  (reply :content (report :content (answer :location
+    (box <var>min-x</var> <var>min-y</var> <var>max-x</var> <var>max-y</var>))))
+</pre></code>
+
+<p>If <code>:format (code "<var>standard-name</var>")</code> is used, the reply will look like this:</p>
 <code><pre>
   (reply :content (report :content (answer :location
     (code :code <var>code</var> :standard "<var>standard-name</var>"))))
@@ -103,6 +118,38 @@ $Date: 2018/07/11 14:20:43 $
 </pre></code>
 
 <p>This <code>list</code> structure can also result from <code>neighbors</code> (see below), even if the requested <code>:format</code> is not a <code>code</code>. The resulting <code>file</code> structures don't get simplified away.</p>
+
+<h3>The <code>get-map</code> request</h3>
+
+<p>This request will return a human-friendly map image covering the area that includes the described region.</p>
+
+<code><pre>
+  (request :content (get-map
+    :description <var>description</var>
+    :format (raster "<var>format-name</var>" <var>width</var> <var>height</var>)
+    ))
+</pre></code>
+
+<p>Its behavior is similar to <code>get-geographic-region</code>, with a few differences:</p>
+<ul>
+ <li>Only raster formats are allowed (no vector, code, etc.).
+ <li>The image covers only the bounding box of the described region, not the whole world (choose <var>width</var> and <var>height</var> accordingly).
+ <li>The image is a human-friendly map with labels, instead of a black and white image just indicating which points are inside or outside the region.
+ <li>In the answer, the output is called <code>:map</code>, not <code>:location</code>.
+</ul>
+
+<p>All of the same kinds of <var>description</var> work, but this is probably most useful with an easting-northing box, e.g.:</p>
+
+<code><pre>
+  (request :content (get-map
+    :description (box -97.5 52.5 -75 67.5)
+    :format (raster "PNG" 300 200)
+    ))
+</pre></code>
+
+<p>This returns a 300x200 pixel PNG image showing a map of Hudson Bay (52.5°N × 97.5°W - 67.5°N × 75°W).</p>
+
+<p>Note that while OpenStreetMap uses a <a href="https://en.wikipedia.org/wiki/Mercator_projection">Mercator projection</a>, Spaceman transforms the map to an <a href="https://en.wikipedia.org/wiki/Equirectangular_projection">equirectangular projection</a>. This is so that it will align with data files using that projection. A consequence of this is that near the poles, labels on the map will appear vertically compressed. Another consequence of the Mercator projection that OSM uses is that it has no map near the poles (otherwise the map would be infinitely tall). OSM's map extends north and south only to ~85.0511° (= arctan(sinh(π))), making it a square.</p>
 
 <h3>Complex Descriptions</h3>
 
@@ -167,6 +214,8 @@ $Date: 2018/07/11 14:20:43 $
 <dl>
 <dt><code>(neighbors <var>country</var>)</code>
 <dd>The countries neighboring <var>country</var>. For now this only works on countries, not other types of region (not even IMPACT regions of multiple countries like "France Plus"). So it's recommended to use it like this: <code>(neighbors (country "<var>country name or code</var>"))</code>. If the selected country has more than one neighbor, they will be wrapped in a <code>list</code> structure; if it has no neighbors, an <code>unknown-object</code> failure will result. <code>neighbors</code> does not work on <code>list</code> structures, so <code>neighbors</code> should not be used as an argument to itself, like <code>(neighbors (neighbors <var>country</var>))</code>.
+<dt><code>(selection <var>selected-rectangle</var> [ <var>page-bounds-rectangle</var> ] <var>displayed-region</var>)</code>
+<dd>The box corresponding to a user selection from <a href="../PDFExtractor/README.html">PDFExtractor</a> or <a href="../ImageDisplay/README.html">ImageDisplay</a> while displaying <var>displayed-region</var> in <code>:format (vector "PDF")</code> or <code>:format (raster "GTIFF" <var>width</var> <var>height</var>)</code>, respectively. The <var>selected-rectangle</var> is the <code>:what</code> argument from the <code>selected</code> report (if it's a <code>point</code> it will be converted to a 1×1 pixel rectangle), and the <var>page-bounds-rectangle</var> is the <code>:bounds</code> argument in the page/image description. If <var>page-bounds-rectangle</var> is omitted, Spaceman gets it by asking PDFExtractor or ImageDisplay to <code>describe</code> the <code>:page</code> or <code>:image</code> from <var>selected-rectangle</var>. The result is a box in geographic coordinates corresponding to the <var>selected-rectangle</var>, which may not be entirely within <var>displayed-region</var>. If your intent is to select only a part of <var>displayed-region</var>, you can use an <code>intersection</code>, e.g. <code>(intersection <var>displayed-region</var> (selection <var>selected-rectangle</var> <var>displayed-region</var>))</code>.
 </dl>
 
 <h3>Examples</h3>
@@ -320,11 +369,13 @@ $Date: 2018/07/11 14:20:43 $
 
 <h3>Coordinate Systems</h3>
 
-<p>The conventional way to specify points on the Earth's surface is in degrees of latitude North or South from the Equator, and degrees of longitude East or West from the Prime Meridian, in that order. Spaceman's raster and vector format outputs use <a href="https://en.wikipedia.org/wiki/Equirectangular_projection">equirectangular projections</a> to map points on the Earth's surface to points in the output image.</p>
+<p>The conventional way to specify points on the Earth's surface is in degrees of latitude North or South from the Equator, and degrees of longitude East or West from the Prime Meridian, in that order. Spaceman's raster, vector, and box format outputs use <a href="https://en.wikipedia.org/wiki/Equirectangular_projection">equirectangular projections</a> to map points on the Earth's surface to points in the output image.</p>
 
 <p>For vector formats, coordinates are given as signed degrees of easting and northing, in that order. That means northern latitudes and eastern longitudes are represented as positive numbers, and southern latitudes and western longitudes are represented as negative numbers. (One exception is SVG, which swaps North and South in order to display the map "right side up" without a transformation.) These conventions are also used in the explicit shape descriptions, <code>box</code>, <code>zone</code>, and <code>lune</code>.</p>
 
 <p>For raster formats, coordinates are given as X and Y, in that order, meaning the number of pixels to the right (East) and down (South) from the top left (Northwest) corner. That means they depend on the <var>width</var> and <var>height</var> in pixels. Raster files always cover the whole surface of the Earth. The center is at 0° latitude by 0° longitude, the X coordinate corresponds to longitude, and the Y coordinate corresponds to latitude.</p>
+
+<p>For box formats, the coordinate system is one of the above two, depending on the second element of the format description: <code>"easting-northing"</code> and <code>"x-y"</code> respectively.</p>
 
 <p>Note that the Y coordinate for raster formats is negated relative to vector formats (i.e. it's <em>southing</em>, not northing). Also note that the order of the two coordinates for both vector and raster formats is the reverse of the conventional (lat, lon) order: (X, Y), not (Y, X), even though lat corresponds to Y and lon corresponds to X.</p>
 

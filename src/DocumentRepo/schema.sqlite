@@ -1,0 +1,25 @@
+CREATE TABLE schema_version AS SELECT 1 AS schema_version;
+
+-- metadata here loosely based on DCMI:
+-- https://www.dublincore.org/specifications/dublin-core/dcmi-type-vocabulary/
+
+CREATE TABLE documents (
+  file TEXT PRIMARY KEY, -- path to file on disk
+  format TEXT NOT NULL, -- :format argument in (file...) KQML structure
+  type TEXT, -- semantic type of document; article, table, etc.
+  title TEXT, -- the title from the document
+  abstract TEXT, -- the abstract from the document 
+  creator TEXT, -- AKA author
+  created TEXT, -- date of creation
+  spatial TEXT, -- place(s) that this document is about
+  temporal TEXT, -- time(s) that this document is about
+  subject TEXT -- other stuff (events, people, things...) that this document is about
+);
+
+CREATE TABLE relationships ( -- relationships between documents, e.g. provenance
+  source_file TEXT PRIMARY KEY,
+  source_part TEXT, -- the part of the source file that is related
+  relationship TEXT NOT NULL,
+  target_file TEXT NOT NULL,
+  target_part TEXT -- the part of the target file that is related
+);

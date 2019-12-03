@@ -2,23 +2,23 @@
 ;;;; W::begin
 ;;;;
 
-(define-words :pos W::v :templ AGENT-THEME-XP-TEMPL
+(define-words :pos W::v :TEMPL AGENT-FORMAL-XP-TEMPL
  :tags (:base500)
  :words (
   (W::begin
    (wordfeats (W::morph (:forms (-vb) :past W::began :pastpart W::begun))) ;:nom w::beginning)))
    (SENSES
     ((meta-data :origin trips :entry-date 20060414 :change-date nil :comments nil :vn ("begin-55.1-1"))
-     (LF-PARENT ONT::startoff-begin-commence-start)
+     (LF-PARENT ONT::start)
      (SEM (F::Aspect F::bounded) (F::Time-span F::atomic))
      (example "He started to eat")
-     (TEMPL agent-effect-subjcontrol-templ (xp (% W::cp (W::ctype W::s-to))))
+     (TEMPL AGENT-FORMAL-SUBJCONTROL-TEMPL (xp (% W::cp (W::ctype W::s-to))))
      )
     ((meta-data :origin trips :entry-date 20060414 :change-date nil :comments nil :vn ("begin-55.1-1"))
-     (lf-parent ont::startoff-begin-commence-start) ;; 20120523 GUM change new parent
+     (lf-parent ont::start)
      (example "the managers began working")
      (SEM (F::Cause F::Agentive) (F::Aspect F::bounded) (F::Time-span F::atomic))
-     (TEMPL agent-effect-subjcontrol-templ (xp (% W::vp (W::vform W::ing))))
+     (TEMPL AGENT-FORMAL-SUBJCONTROL-TEMPL (xp (% W::vp (W::vform W::ing))))
      )
 #|    
      ((meta-data :origin trips :entry-date 20060414 :change-date nil :comments nil :vn ("begin-55.1-1"))
@@ -33,7 +33,7 @@
      (example "begin the meeting")
      (templ agent-neutral-xp-templ)
      )
-    ((lf-parent ont::startoff-begin-commence-start) ;; 20120523 GUM change new parent
+    ((lf-parent ont::start) ;; 20120523 GUM change new parent
      (SEM (F::Cause F::Agentive) (F::Aspect F::bounded) (F::Time-span F::atomic))
      (example "when can you begin")
      (templ agent-templ)

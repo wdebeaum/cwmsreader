@@ -7,13 +7,13 @@
  :words (
   (W::follow
    (SENSES
-    ((LF-PARENT ONT::FOLLOW-PATH)
+    ((LF-PARENT ONT::FOLLOW-SOMETHING)
      (example  "I follow truck B" "The truck followed the road to Avon")
      (SEM (F::Aspect F::unbounded) (F::Time-span F::extended))
      )
     ((LF-PARENT ONT::Compliance)
      (example "follow this procedure")
-     (templ agent-theme-xp-templ)
+     (TEMPL AGENT-FORMAL-XP-TEMPL)
      (meta-data :origin integrated-learning :entry-date 20050817 :change-date nil :comments nil)
      )
     )

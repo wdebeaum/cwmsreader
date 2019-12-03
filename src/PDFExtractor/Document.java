@@ -1,6 +1,9 @@
 package TRIPS.PDFExtractor;
 
+import java.io.File;
 import java.util.ArrayList;
+import java.util.List;
+import java.util.regex.Pattern;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageTree;
@@ -13,15 +16,18 @@ import TRIPS.util.cwc.Args;
 import TRIPS.util.cwc.CWCException;
 import TRIPS.util.cwc.InvalidArgument;
 
-public class Document implements HasID {
+/** A PDF document. */
+public class Document implements HasID, TextMatch.Searchable {
   final String id;
   @Override public String getID() { return id; }
   final PDDocument pdDoc;
+  final File pdfFile;
   ArrayList<Page> pages;
 
-  public Document(PDDocument pdDoc) {
+  public Document(PDDocument pdDoc, File pdfFile) {
     id = HasID.getNextIDAndPut(this);
     this.pdDoc = pdDoc;
+    this.pdfFile = pdfFile;
     PDPageTree pdPages = pdDoc.getPages();
     pages = new ArrayList<Page>(pdPages.getCount());
     int pageIndex = 0;
@@ -32,6 +38,7 @@ public class Document implements HasID {
   }
 
   public PDDocument getPDDocument() { return pdDoc; }
+  public File getPDFFile() { return pdfFile; }
 
   public Page getPage(int pageIndex) { return pages.get(pageIndex); }
 
@@ -55,5 +62,14 @@ public class Document implements HasID {
     } else {
       throw new InvalidArgument("nil", ":document", "a list or id", listOrID);
     }
+  }
+
+  @Override
+  public List<TextMatch> search(Pattern searchPattern) {
+    List<TextMatch> matches = new ArrayList<TextMatch>();
+    for (Page p : pages) {
+      matches.addAll(p.search(searchPattern));
+    }
+    return matches;
   }
 }

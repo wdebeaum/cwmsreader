@@ -14,7 +14,9 @@
 
 (define-type ont::social-contract
     :arguments ((:OPTIONAL ONT::FIGURE (f::situation)))
+    :sem (F::abstr-obj (f::spatial-abstraction -))
     :parent ont::mental-construction
+    :wordnet-sense-keys ("social_contract%1:26:00")
 )
 
 ;;; ont::social-imperative represents concepts which
@@ -28,24 +30,28 @@
 (define-type ont::social-imperative
   :parent ont::social-contract
   :wordnet-sense-keys ("freedom%1:26:01" "slavery%1:26:00")
-)
+  )
+
+(define-type ont::right-permission
+    :parent ont::social-contract
+    :arguments ((:essential ont::figure (F::situation)))
+    :wordnet-sense-keys ("right%1:07:00" "permission%1:10:00")
+    )
 
 (define-type ont::social-judgement
   :parent ont::social-imperative
+  :wordnet-sense-keys ("approve%2:32:00" "sanction%2:32:02")
 )
 
 ;; Maybe there is too much overlap between children in governing-principle and
 ;; judgement-val.  The goal is to extricate the actual judgement from the expression
 ;; which represents it, but that may be too lofty a goal.
-
-(define-type ont::judgement-val
-  :parent ont::social-judgement
-  :wordnet-sense-keys ("justice%1:07:00" "injustice%1:07:00" "moral%3:00:00::" "immoral%3:00:00::" "immoral%3:00:00:wrong:01")
-)
+;; 03/13/19 - judgement-val renamed morality-val and moved under judgement-val
+;;            which is under evaluation-attribute-val
 
 (define-type ont::essential-contract
   :parent ont::social-imperative
-  :wordnet-sense-keys ("right%1:07:00" "absolute%1:09:00" "absolute%3:00:00:inalienable:00")
+  :wordnet-sense-keys ("right%1:07:00" "absolute%1:09:00" "absolute%5:00:00:inalienable:00")
 )
 
 
@@ -66,7 +72,7 @@
 
 (define-type ont::governing-principle
   :parent ont::social-contract
-  :wordnet-sense-keys ("morality%1:07:00" "morality%1:16:00" "ethic%1:09:00" "ethic%1:10:00")
+  :wordnet-sense-keys ("injustice%1:07:00" "justice%1:07:00" "morality%1:16:00" "ethic%1:09:00" "ethic%1:10:00" "rule%1:10:00" "law%1:09:00" "law%1:09:01" "principle%1:09:03" "principle%1:09:01" "generally_accepted_accounting_principles%1:14:00")
 )
 
 (define-type ont::external-authority

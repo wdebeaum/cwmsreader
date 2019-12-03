@@ -49,12 +49,14 @@
   (W::AT
    (SENSES
     ((LF-PARENT ONT::time-clock-rel)
-     (TEMPL BINARY-CONSTRAINT-S-TEMPL)
+     (TEMPL BINARY-CONSTRAINT-S-or-NP-TEMPL)
      )
+    #|
      ((LF-PARENT ONT::time-clock-rel)
       (TEMPL BINARY-CONSTRAINT-NP-TEMPL)
       (preference .97)
       )
+    |#
     #||((LF-PARENT ONT::time-clock-rel)
      (TEMPL BINARY-CONSTRAINT-adj-postpos-TEMPL)
      (meta-data :origin cernl :entry-date 20110114 :change-date nil :comments hpi-acn-3)
@@ -62,10 +64,12 @@
      (preference .98)
      )||#
     ((LF-PARENT ONT::situated-in);;time-clock-rel)      ;;I think the "sit-val" reading of TiME-CLOCK-REL actually be SITUATED-IN  JFA 1/10
-     (TEMPL binary-constraint-NP-TEMPL);;binary-constraint-SIT-VAL-NP-TEMPL)
+     (TEMPL binary-constraint-S-or-NP-TEMPL);;binary-constraint-SIT-VAL-NP-TEMPL)
      (preference .98))
+    
     ((LF-PARENT ONT::AT-LOC)
      (TEMPL BINARY-CONSTRAINT-S-OR-NP-TEMPL)
+     (preference .991) ; slightly prefer this even if there is a semantic violation for this (and all the other senses)
      )
 
     

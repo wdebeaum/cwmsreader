@@ -15,7 +15,7 @@
    )
 ))
 
-(define-words :pos W::V :templ agent-theme-xp-templ
+(define-words :pos W::V :TEMPL AGENT-FORMAL-XP-TEMPL
  :words (
   (W::bowl
    (SENSES
@@ -23,6 +23,11 @@
      (LF-PARENT ONT::self-locomote)
      (TEMPL agent-templ) ; like stroll,walk
      )
+
+    ((LF-PARENT ONT::play)
+     (TEMPL agent-templ)
+     )
+
     )
    )
 ))

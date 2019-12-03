@@ -27,7 +27,11 @@
 		  "planner"
 		  "messages"
 		  "warn"
-		  "CWMSrules"
+		;;  "CWMSrules"
+		  "task-manager"
+		  "taskDecisionFunctions"
+		  "tasklibrary"
+		  "CWMSgenerator"
 		  ))
 
 (dfc:defcomponent :cwmsAgent
@@ -42,6 +46,7 @@
 (defun initialize nil
   ;(send-msg '(REQUEST :content (RESTART)))
   ;(send-msg '(TELL :content (I-AM-HERE :who CWMSAGENT)))
+  (setq *user* (dagent::lookup-user 'desktop))
   (restart-cwms)
   (setq dagent::*suppress-context-on-what-next* t)  ;;  this simplifies message traffic as we already have the context
   )
@@ -53,3 +58,6 @@
 (defvar *replyCounter* 0)
 
 (defvar *cwms-package* (find-package :cwmsagent))
+
+(defvar *user* nil)
+

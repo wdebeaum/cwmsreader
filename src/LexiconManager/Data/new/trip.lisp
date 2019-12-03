@@ -13,7 +13,7 @@
    )
 ))
 
-(define-words :pos W::v :templ AGENT-THEME-XP-TEMPL
+(define-words :pos W::v :TEMPL AGENT-FORMAL-XP-TEMPL
  :words (
   (W::trip
    (SENSES
@@ -22,17 +22,21 @@
      (TEMPL affected-TEMPL)
      (example "he tripped over his shoes")
      )
+    ((EXAMPLE "Don't trip the bomb!")
+     (LF-PARENT ont::start-object)
+     (TEMPL AGENT-AFFECTED-XP-NP-TEMPL)
+     )
     )
    )
 ))
 
-(define-words :pos W::v :templ AGENT-THEME-XP-TEMPL
+(define-words :pos W::v :TEMPL AGENT-FORMAL-XP-TEMPL
  :words (
   ((W::trip w::out)
    (SENSES
       ((meta-data :origin cause-result-relations :entry-date 20180411 :change-date nil :comments nil)
-     (LF-PARENT ont::trip-out)
-     (TEMPL agent-templ) 
+     (LF-PARENT ont::alter-consciousness)
+     (TEMPL affected-templ) 
      (EXAMPLE "He tripped out every weekend")
      )
     )

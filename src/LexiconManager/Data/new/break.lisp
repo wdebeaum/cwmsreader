@@ -34,17 +34,37 @@
 ))
 |#
 
-(define-words :pos W::v :templ agent-affected-xp-templ
+(define-words :pos W::v :TEMPL AGENT-AFFECTED-XP-NP-TEMPL
  :words (
   (W::break
    (wordfeats (W::morph (:forms (-vb) :past W::broke :pastpart W::broken :ing W::breaking :nom w::break)))
    (SENSES
+
+    ((LF-PARENT ONT::appear)
+     (example "news of her death broke in the morning")
+     (meta-data :wn ("break%2:32:05"))
+     (SEM (F::Aspect F::bounded) (F::Time-span F::atomic))
+     (TEMPL affected-TEMPL)
+     (SYNTAX (w::resultative +))
+    )
+
+    ;((LF-PARENT ONT::stop)
+    ((LF-PARENT ONT::become)
+     (example "the company broke even")
+     (meta-data :wn ("terminate%2:30:01"))
+     (SEM (F::Aspect F::bounded) (F::Time-span F::atomic))
+     (TEMPL AFFECTED-FORMAL-XP-PRED-TEMPL)
+     (SYNTAX (w::resultative +))
+    )
+
+
     ((meta-data :origin "verbnet-2.0" :entry-date 20060315 :change-date 20090601 :comments nil :vn ("cheat-10.6") :wn ("break%2:42:04"))
      (LF-PARENT ONT::stop)
-     (TEMPL agent-effect-affected-objcontrol-templ)
+     (TEMPL AGENT-AFFECTED-FORMAL-CP-OBJCONTROL-TEMPL)
      (PREFERENCE 0.96)
      (example "She finally broke herself of smoking cigarettes")
      )
+
     ((LF-PARENT ONT::BREAK-OBJECT)
      (meta-data :origin calo :entry-date 20040908 :change-date nil :comments caloy2 :vn ("break-45.1") :wn ("break%2:29:04" "break%2:30:00" "break%2:30:10" "break%2:30:15" "break%2:35:00" "break%2:38:11" "break%2:41:08"))
      (example "the window broke")
@@ -68,14 +88,14 @@
     ((LF-PARENT ONT::render-ineffective)
      (meta-data :origin calo :entry-date 20040908 :change-date nil :comments caloy2)
      (SEM (F::Aspect F::unbounded))
-     (TEMPL agent-affected-xp-templ)
+     (TEMPL AGENT-AFFECTED-XP-NP-TEMPL)
      (example "he broke the browser")
      )
     
        )
 )))
 
-(define-words :pos W::v :templ AGENT-AFFECTED-XP-TEMPL
+(define-words :pos W::v :TEMPL AGENT-AFFECTED-XP-NP-TEMPL
  :words (
 ;   )
   ((W::break (W::up))
@@ -88,3 +108,16 @@
    )
 ))
 
+(define-words :pos W::v 
+ :words (
+;   )
+  ((W::break W::out)
+   (wordfeats (W::morph (:forms (-vb) :past W::broke :pastpart W::broken :nom (w::break w::out))))
+   (SENSES
+    ((LF-PARENT ONT::start)
+     (SEM (F::Aspect F::Bounded) (F::Time-span F::Atomic))
+     (TEMPL AFFECTED-TEMPL)
+     )
+    )
+   )
+))

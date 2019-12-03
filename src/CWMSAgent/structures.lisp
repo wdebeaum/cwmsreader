@@ -2,6 +2,49 @@
 
 (in-package :cwmsAgent)
 
+(defstruct task
+  name
+  task-type ;; top (level), abstract (used for inheritance), template (use to generate new tasks as needed) 
+  id  ;; ID of an instance used to coordinate goals
+  description ;; goal description
+  status  ;; proposed, accepted, rejected
+  patterns
+  arguments
+  inherits-from
+  constraints
+  subtasks
+  built-in
+  am-i-done
+  returns
+  completion-criteria
+  initial-action)
+
+(defvar *all-tasks* nil)
+(defvar *top-level-tasks* nil)
+
+(defun get-task-by-name (name)
+  (cadr (assoc name *all-tasks*)))
+
+(defstruct argument
+  :name
+  :description
+  :type
+  :kr-value
+  :value
+  :requirements
+  :patterns
+  :produced-by
+  :when-filled
+  :value-description)
+
+(defstruct subtask
+  :name
+  :input     ;; list of pairs (<arg name in task> <arg name in subtask>) for instantiating the args in subtask
+  :output    ;; list of pairs (<arg in subtask> <arg in parent task>) for instantiating parent args when subtask returns
+  :vars-that-need-binding  ;; internal for record keeping for easy checking if subtask is needed or not, not needed in tasklibraryvaras
+  )
+
+;;;   OLD
 (defvar *current-plan* nil)
 (defvar *parameters* nil)
 (defvar *parameter-library* nil)

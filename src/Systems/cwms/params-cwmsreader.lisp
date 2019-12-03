@@ -68,7 +68,7 @@
 	;((parser::setmaxchartsize 3000))
 	((parser::setmaxchartsize 8000))
 	;;
-	;;(parser::*kr-type-info-desired* '(:WNsense :DRUM :wordnet))
+	(parser::*kr-type-info-desired* '(:WNsense :CWMS :wordnet))
 	;;
 	((setf (parser::flexible-semantic-matching parser::*chart*) t))
 	;; boost content words that have domain specific info attached
@@ -111,7 +111,7 @@
 ;(setq im::*max-allowed-utts-in-turn* 2) ;; we're being a little generous to try to pick up more referring expressions
 (setq im::*max-allowed-utts-in-turn* 30) ;; we're being hard nosed as get started
 (setq im::*external-name-resolution* nil)  ;; will eventually be set to T when we do reference resolution in context
-(setq im::*show-lf-graphs* nil)
+(setq im::*show-lf-graphs* t)
 (setq im::*lf-output-by-utterance* t)
 (setq im::*max-cover-with-strict-disjoint-extractions* nil)
 (setq im::*eliminate-subevents* nil)
@@ -127,7 +127,7 @@
 ;; use WordFinder?
 (setq lxm::*use-wordfinder* t)
 ;; we are trying to really depend on the Stanford parser (for now!)
-(setq lxm::*use-tagged-senses-only* t)
+(setq lxm::*use-tagged-senses-only* nil)
 ;; don't use wordnet if we have domain-specific info from TextTagger
 (setq lxm::*no-wf-senses-for-words-tagged-with-ont-types* t)
 ;; don't use wordnet if we have TRIPS entries  
@@ -149,13 +149,13 @@
 
 ;; and here's the state definitions for the dialogue manager
 
-(setq im::*extraction-sequence* '((im::preprocessRules) (im::cwmsRules) (im::drum) (im::cwms_ev_add) (im::drumMod) (im::cwmsCC) (im::postprocessRules)))
+(setq im::*extraction-sequence* '((im::preprocessRules) (im::cwmsRules) (im::drum) (im::cwms_ev_add) (im::drumMod) (im::cwmsCC) (im::postprocessRules) (im::postprocessF)))
 (setq im::*substitute-terms-in-extraction* t)
-(setq im::*roles-to-emit* nil)
+(setq im::*roles-to-emit* nil) ; reloading drumrules_ev will overwrite this
 
 (setq dagent::*external-CSM* t)
 
 (setq *texttagger-split-mode*
-;  :split-clauses
-  :split-sentences
+  :split-clauses
+;  :split-sentences
   )

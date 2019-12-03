@@ -27,16 +27,18 @@
 )
 ))
 
-(define-words :pos W::v :templ AGENT-THEME-XP-TEMPL
+(define-words :pos W::v :TEMPL AGENT-FORMAL-XP-TEMPL
  :tags (:base500)
  :words (
   (w::ground
    (wordfeats (W::morph (:forms (-vb) :nom w::grounding)))
     (SENSES
-     ((LF-PARENT ONT::establish)
+     (;(LF-PARENT ONT::establish)
+      (LF-PARENT ONT::attribute-impute)
       (EXAMPLE "he grounded his beliefs on faith")
       (META-DATA :ORIGIN calo-ontology :ENTRY-DATE 20060620 :CHANGE-DATE NIL :COMMENTS nil)
-      (TEMPL agent-affected-create-manner-optional-templ (xp (% w::pp (w::ptype (? pt w::in w::on)))))
+      ;(TEMPL AGENT-AFFECTEDR-MANNER-2-XP-3-XP2-OPTIONAL-TEMPL (xp (% w::pp (w::ptype (? pt w::in w::on)))))
+      (TEMPL AGENT-NEUTRAL-NEUTRAL1-2-XP-3-XP2-TEMPL (xp2 (% w::pp (w::ptype w::on))))
       )
      )
     )

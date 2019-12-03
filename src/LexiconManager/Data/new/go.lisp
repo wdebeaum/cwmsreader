@@ -15,7 +15,7 @@
 )
 ))
 
-(define-words :pos W::v :templ AGENT-AFFECTED-XP-TEMPL
+(define-words :pos W::v :TEMPL AGENT-AFFECTED-XP-NP-TEMPL
  :tags (:base500)
  :words (
   (W::go
@@ -24,30 +24,38 @@
     ((lf-parent ont::undergo-action)
      (example "I kept going")
      (TEMPL affected-TEMPL)
-     (preference .97)  ;; this really should be a last resort
+     (preference .98)  ;; this really should be a last resort
      (meta-data :origin bee :entry-date 20040805 :change-date nil :comments portability-followup))
     ((lf-parent ont::occurring)
      (example "The interview went well")
      (TEMPL neutral-TEMPL) (SYNTAX (ADVBL-NECESSARY +))
-     (preference 0.98)
+     (preference 0.985)
      (meta-data :origin bee :entry-date 20040805 :change-date nil :comments portability-followup))
+
+    ((lf-parent ont::occurring)
+     (example "How is it going?")
+     (TEMPL neutral-TEMPL)
+      (preference 0.985)
+     (meta-data :wn ("go%2:42:03"))
+    )
+
     ((lf-parent ont::execute)
      (example "he went jogging")
-     (templ agent-effect-subjcontrol-templ (xp (% W::VP (W::vform W::ing))))
+     (TEMPL AGENT-FORMAL-SUBJCONTROL-TEMPL (xp (% W::VP (W::vform W::ing))))
      (meta-data :origin chf :entry-date 20070904 :change-date nil :comments nil))
     
     ((meta-data :origin monroe :entry-date 20031217 :change-date nil :comments s15)
      (lf-parent ont::become)
      (example "The meat has gone bad")
-     (templ affected-pred-templ)
+     (TEMPL AFFECTED-FORMAL-XP-PRED-TEMPL)
      )
      
     ((lf-parent ont::execute)
      (example "he went for a walk")
-     (templ agent-effect-xp-templ (xp (% W::pp (W::ptype (? pt w::for)))))
+     (TEMPL AGENT-FORMAL-XP-NP-TEMPL (xp (% W::pp (W::ptype (? pt w::for)))))
      (meta-data :origin chf :entry-date 20070904 :change-date nil :comments nil))     
     
-    ((LF-PARENT ONT::MOVE)
+    ((LF-PARENT ONT::self-locomote)
      (SEM (F::aspect F::unbounded) (F::time-span F::extended))
      (example "go to amazon dot com" "go by the store")
      (meta-data :origin plow :entry-date 20050315 :change-date nil :comments nil)
@@ -56,19 +64,19 @@
     ((meta-data :origin plow :entry-date 20060113 :change-date nil :comments pqs)
      (EXAMPLE "this goes here" "the title goes in the textbox")
      (LF-PARENT ONT::should-be-at)
-     (TEMPL neutral-location-TEMPL)
+     (TEMPL NEUTRAL-LOCATION-XP-TEMPL)
      )
-    ((LF-PARENT ONT::startoff-begin-commence-start)
+    ((LF-PARENT ONT::start)
      (example "go to/and fix the power lines")
      (SEM (F::aspect F::unbounded) (F::time-span F::extended))
-     (TEMPL AGENT-effect-SUBJCONTROL-TEMPL (xp (% W::cp (W::ctype (? ct W::s-and)))))
+     (TEMPL AGENT-FORMAL-SUBJCONTROL-TEMPL (xp (% W::cp (W::ctype (? ct W::s-and)))))
      (PREFERENCE 0.97)    ;;;; use any other possible sense first
      )
     ;;;; for imperatives only
     ((EXAMPLE "Go find it")
-     (LF-PARENT ONT::startoff-begin-commence-start)
+     (LF-PARENT ONT::start)
      (SEM (F::aspect F::unbounded) (F::time-span F::extended))
-     (TEMPL AGENT-effect-SUBJCONTROL-TEMPL (xp (% W::vp (W::vform W::base) (w::complex -))))  
+     (TEMPL AGENT-FORMAL-SUBJCONTROL-TEMPL (xp (% W::vp (W::vform W::base) (w::complex -))))  
      (SYNTAX (W::morph (:forms NIL)) (W::vform W::base))
      (PREFERENCE 0.97)    ;;;; use any other possible sense first
      )
@@ -81,7 +89,7 @@
    ))
 ))
 
-(define-words :pos W::v :templ AGENT-AFFECTED-XP-TEMPL
+(define-words :pos W::v :TEMPL AGENT-AFFECTED-XP-NP-TEMPL
  :words (
 #|
   ((W::go w::through)
@@ -99,7 +107,7 @@
     ((example "let's go for/with the mac")
      (LF-PARENT ONT::SELECT)
      (SEM (F::Cause F::agentive) (F::Aspect F::bounded) (F::Time-span F::atomic))
-     (templ agent-affected-xp-templ (xp (% W::pp (W::ptype (? pt w::for W::with)))))
+     (TEMPL AGENT-AFFECTED-XP-NP-TEMPL (xp (% W::pp (W::ptype (? pt w::for W::with)))))
      (meta-data :origin calo :entry-date 20040412 :change-date nil :comments calo-y1v4)
      )
     ))
@@ -109,7 +117,7 @@
     ((example "let's go for/with the mac")
      (LF-PARENT ONT::SELECT)
      (SEM (F::Cause F::agentive) (F::Aspect F::bounded) (F::Time-span F::atomic))
-     (templ agent-affected-xp-templ (xp (% W::pp (W::ptype (? pt w::for W::with)))))
+     (TEMPL AGENT-AFFECTED-XP-NP-TEMPL (xp (% W::pp (W::ptype (? pt w::for W::with)))))
      (meta-data :origin calo :entry-date 20040412 :change-date nil :comments calo-y1v4)
      )
     ))
@@ -205,15 +213,15 @@
    )
 ))||#
 
-(define-words :pos W::v :templ AGENT-AFFECTED-XP-TEMPL
+(define-words :pos W::v :TEMPL AGENT-AFFECTED-XP-NP-TEMPL
  :words (
   ((W::go W::off)
    (wordfeats (W::morph (:forms (-vb) :3s W::goes :past W::went :pastpart W::gone)))
    (SENSES
-    ((LF-PARENT ONT::START-OBJECT)
+    ((LF-PARENT ONT::start)
      (TEMPL affected-TEMPL)
      (meta-data :origin beetle :entry-date 20080516 :change-date nil :comments pilot2)
-     (example "the bulb went off")
+     (example "the alarm went off")
      ))
    )
 ))

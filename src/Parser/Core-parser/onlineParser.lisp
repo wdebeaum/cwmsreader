@@ -177,7 +177,8 @@
   (compute-length-score (entry-size e)))
 
 (defun compute-length-score (size)
-  "computes a factor based on average prob. of a constituent of length L"
+  "computes a factor based on average prob. of a constituent of length L:
+      MUST return a score between 0 and 1"
   (let* ((number-constit (/ (or size 1) *word-length*))
 	 (raw-factor (compute-log-factor number-constit))
 	 (over-one (- raw-factor 1))
@@ -186,26 +187,35 @@
 		     (if (> *score-length-multiplier* 0)
 			 (+ 1 (* *score-length-multiplier* over-one))
 			 1))))
-    (max factor 1))
-  )
-
+    (min (- (max factor 1) 1) 1)
+  ))
 
 (defun compute-log-factor (n)
   (if (< n 2.7) 1
-      (let ((ll (- (log n) 1)))
-	(+ 1 (/ ll 3)))))
+      (log n)))
+    #||  (let ((ll (- (log n) 1)))
+	(+ 1 (/ ll 3)))))||#
 
 (defun corner-score (i)
   )
-
 
 (defun calculate-score (i)
   "This function computes the score for AGENDA_ITEM I for placement in the agenda. You may modify this to
      experiment with different scoring functions"
   (cond
    ((eql (agenda-item-start i) (agenda-item-end i)) 1) ;;  insurance check
-   (t (min (* (probability-score i) 
-	      (arc-length-score i)) 1))))
+   (t (reached-end-boost (min #|(* (probability-score i) 
+			  (arc-length-score i)) 1))))|#
+			  (+ (probability-score i) 
+			     (* (- 1 (probability-score i)) (arc-length-score i))) 1)
+			 (agenda-item-end i)))))
+			 
+
+(defun reached-end-boost (score end-posn)
+  "This gives the score a boost if it has reached the end of the sentence. This helps focus the search near the end when it often gets swamped"
+  (if (= end-posn (get-max-position))
+      (boost-by-percent score .1)
+      score))
 
 (defun calculate-entry-score (e)
   "This is used for final output, so need not be efficient"
@@ -232,25 +242,56 @@
       (parser-warn "Init-agenda called with non numberic arg: ~S. it was ignored" number-of-buckets))
     
     )
-   
-  (defun add-to-agenda (entry)
-    "Add an entry onto the agenda"
-    (when entry
-      (when (and (eq *agenda-trace* 'ADD)
-		 (entry-p entry))
-	(format t "~%Making ENTRY ~S into agenda item with prob ~S ..." (entry-name entry) (entry-prob entry)
-		))	
-      (Cond
-       ((Entry-P entry) (compute-score-and-add (make-agenda-item
-						:type 'entry :prob (entry-prob entry) :entry entry
-						:Id (Entry-name entry)
-						:Start (Entry-start entry) :end (entry-end entry))))
-       ((agenda-item-p entry)
-	(compute-score-and-add entry))
-       (t (break "Bad call to add-to-agenda: ~S" entry)))
+
+;; new tracing facility, not completed yet
+
+(defvar *trace-record* nil)
+
+(defun trace-agenda (&key start end rule)
+  (if (and (null start) (null end) (null rule))
+      (setq *agenda-trace* 'ADD)
+      ;;  otherwise we're tracing based on some criteria
+      (setq *trace-record* (list start end rule))
       ))
-  
-  (defun compute-score-and-add (i)
+    
+(defun untrace-agenda ()
+  (setq *agenda-trace* nil)
+  (setq *trace-record* nil))
+
+
+(defun add-to-agenda (entry)
+  "Add an entry onto the agenda"
+  (when entry
+    (when (and (eq *agenda-trace* 'ADD)
+	       (entry-p entry))
+      (format t "~%Making ENTRY ~S into agenda item with prob ~S ..." (entry-name entry) (entry-prob entry)
+	      ))
+    (if *trace-record* (if (entry-p entry)
+			   (trace-if-desired (entry-start entry) (entry-end entry) (entry-rule-id entry) entry 'adding)
+			   (trace-if-desired (agenda-item-start entry) (agenda-item-end entry) (agenda-item-id entry) entry 'adding)))
+    (Cond
+      ((Entry-P entry) (compute-score-and-add (make-agenda-item
+					       :type 'entry :prob (entry-prob entry) :entry entry
+					       :Id (Entry-name entry)
+					       :Start (Entry-start entry) :end (entry-end entry))))
+      ((agenda-item-p entry)
+       (compute-score-and-add entry))
+      (t (break "Bad call to add-to-agenda: ~S" entry)))
+    ))
+
+(defun trace-if-desired (start end ID entry op)
+  (when (AND
+	  (or (null (third *trace-record*))
+	      (eq ID (third *trace-record*)))
+	  (or (null (second *trace-record*))
+	      (eq start (car *trace-record*)))
+	  (or (null (car *trace-record*))
+	      (eq end (second *trace-record*)  )))
+    ;; it can be used to change this to a break when trying to isolate problems
+    (format t "~%~%AGENDA ~S with score ~S: ~S"  op (calculate-score entry) entry))
+  )
+
+(defun compute-score-and-add (i)
     (if (>= (agenda-item-prob i) (entry-threshold))
 	(let* ((score (calculate-score i))
 	       (bucket (max 0 (min (floor (* score (/ *number-of-buckets-for-agenda* 2)))
@@ -284,21 +325,31 @@
           (t (cons (car agenda-bucket) 
                    (insert-in-agenda item score (cdr agenda-bucket))))))
 
-  (defun get-next-entry nil
-    (let ((entry (car (aref (agenda *chart*) (top-bucket *chart*)))))
-      (pop (aref (agenda *chart*) (top-bucket *chart*)))
-      (when (null (aref (agenda *chart*) (top-bucket *chart*)))
-        (setf (top-bucket *chart*) (find-new-top-bucket (top-bucket *chart*)))
-        )
-      ;;      (format t "~% exploring entry ~S~%" entry)
-      ;; (format t "~% exploring entry ")
-      ;; (show-entry-with-name entry '(lex))      
-      entry))
+(defun get-next-entry nil
+  ;;(agenda-sanity-check)
+  (let ((entry (car (aref (agenda *chart*) (top-bucket *chart*)))))
+    (pop (aref (agenda *chart*) (top-bucket *chart*)))
+    (when (null (aref (agenda *chart*) (top-bucket *chart*)))
+      (setf (top-bucket *chart*) (find-new-top-bucket (top-bucket *chart*)))
+      )
+    (if *trace-record*
+	(trace-if-desired (agenda-item-start entry) (agenda-item-end entry) (agenda-item-id entry) entry 'processing))
+    entry))
 
-  (defun find-new-top-bucket (n)
-    (if (> n 0)
+(defun agenda-sanity-check nil
+  (if (not (eq (find-new-top-bucket 200) (top-bucket *chart*)))
+      (break "~%~% PROBLEM WITH Agenda: top-bucket say ~S but ~S is not empty~%~%" (top-bucket *chart*) (find-new-top-bucket 200))
+      ))
+
+(defun find-new-top-bucket (n)
+  (if (> n 0)
       (if (aref (agenda *chart*) n) n (find-new-top-bucket (- n 1)))
       0))
+
+(defun agenda-sanity-check nil
+  (if (not (eq (find-new-top-bucket 200) (top-bucket *chart*)))
+      (break "~%~% PROBLEM WITH Agenda: top-bucket say ~S but ~S is not empty~%~%" (top-bucket *chart*) (find-new-top-bucket 200))
+      ))
   
 (defun peek-agenda nil
     (car (aref (agenda *chart*) (top-bucket *chart*))))
@@ -396,17 +447,23 @@
 	 (*duplicate* nil)
 	 (extrafeats (find-arg others :feats))
 	 ;;(domain-specific-info (find-arg others :domain-specific-info))
-	 (wn-senses (find-arg (car (find-arg others :sense-info)) :wn-sense-keys))
-	 (wn-domain-info  (if wn-senses (list (cons 'WN wn-senses)))))
-			  
+	 (all-wn-senses (flatten (mapcar #'(lambda (x) (find-arg x :wn-sense-keys))
+					 (find-arg others :sense-info))))
+	
+	 )
+    ;;(format t "~%all wordnet mappings = ~S" all-wn-senses)
     (mapcar #'(lambda (lex-entry)
 		(when (lex-entry-is-new lex-entry word start end)
 		    (cond
 		      ;;  Normal case:  we have a lex-entry struct.
 		      ((lex-entry-p lex-entry)
-		       (let ((id (lex-entry-id lex-entry))
-			     (domain-info (or (get-value (lex-entry-constit lex-entry) 'w::kr-type)
-					      wn-domain-info)))
+		       (let* ((lexc (lex-entry-constit lex-entry))
+			      (id (lex-entry-id lex-entry))
+			      (domain-info (or (get-value lexc 'w::kr-type)
+					       (let ((lf (get-value lexc 'w::lf)))
+						 (list (find-wn-mapping (if (consp lf) (third lf) word)
+								  (get-type lf)
+								  all-wn-senses))))))
 
 			 (setq entries (cons (build-entry 
 					      (instantiateVAR (append-features (set-domain-info word (copy-constit (lex-entry-constit lex-entry)) 
@@ -434,6 +491,45 @@
       (setq entries (list (build-entry (build-constit 'UNKNOWN (list (list 'w::input (list word))) nil)
                                        start end  nil 'UNK 1 nil 'w::unknown))))
     entries))
+
+(defun find-wn-mapping (word type wnsenses)
+  (when *wn-wsd-enabled*
+  (let* ((wordsenses (or wnsenses (get-wnsenses-for-word word)))
+	(res
+	 (remove-if #'null
+		   (or
+		;; first try the low hanging fruit
+		(intersection
+		 (om::ont-type-wordnet-sense-keys type) wordsenses :test #'equal)
+		(let* ((sense-mappings (remove-if #'(lambda (x)
+						      (member (car x) '(ONT::ANY-SEM ONT::REFERENTIAL-SEM ONT::SITUATION-ROOT ONT::MODIFIER)))
+						  (mapcar #'(lambda (x) (list (car (wf::best-ont-type-for-sense-key x)) x)) wordsenses)))
+		       (best-senses (if type (or (remove-if-not #'(lambda (x) (eq (car x) type))
+								sense-mappings)
+						 ;; if no direct match, look for hierarchical relationship
+						 (remove-if-not #'(lambda (x)
+								    (om::subtype type (car x)))
+								sense-mappings))
+					sense-mappings)))
+		  ;;(format t "~% mapping ~S best = ~S~%" sense-mappings best-senses)
+		  (or
+		   (mapcar #'cadr best-senses)
+		   wnsenses
+		   (list (car (om::ont-type-wordnet-sense-keys type)))  ;; there is no sense, return a sense associated with the type
+		   (list (car wordsenses))   ;; if all else fails, return the first sense of the the word
+		   ))))))
+    (if res
+	(cons 'WN res)))))
+
+(defun get-wnsenses-for-word (w)
+  (let ((*package* (find-package :wf))
+	(word (if (symbolp w)
+		  (symbol-name w)
+		  )))
+    (when word
+      (flatten (mapcar (lambda (ss) (wf::sense-key-for-word-and-synset word ss))
+		     (wf::get-all-synsets wf::wm word))
+    ))))
 
 (defun lex-entry-is-new (le word start end)
   t)
@@ -487,8 +583,10 @@
 	 (score
 	  (* (if (and (not (eq (constit-cat c) 'w::pro))
 		      (not (member (get-value c 'w::lex) '(w::one)))
-		      (or (if (symbolp lf) (member lf '(ont::referential-sem ont::modifier)))
-			  (if (consp lf) (intersection lf '(ont::referential-sem ont::modifier)))))
+		      ;(or (if (symbolp lf) (member lf '(ont::referential-sem ont::modifier)))
+			  ;(if (consp lf) (intersection lf '(ont::referential-sem ont::modifier)))))
+		      (or (if (symbolp lf) (member lf '(ont::referential-sem ont::property-val)))
+			  (if (consp lf) (intersection lf '(ont::referential-sem ont::property-val)))))
 		 ;; addition penalty if it contains a hyphen!
 		 (if (position #\- (coerce (symbol-name lex) 'list))
 		     (* *referential-sem-penalty*  *referential-sem-penalty*)
@@ -526,8 +624,8 @@
 	(lf (get-value c 'W::LF))
 	)
     (when (and (var-p sem) (consp lf)) ;;(not (member (third lf) '(W::BE W::HAVE W::BEING W::HAVING))))
-	  
-      (if (and *wn-wsd-enabled* (member 'wn sense-info))  ;; here we try to guess the best sense from WN
+	  ;;  commented out as we've already computed the WN sense
+      #|(if (and *wn-wsd-enabled* (member 'wn sense-info))  ;; here we try to guess the best sense from WN
 	  (let ((sense
 		 (multiple-value-bind (core non-core)
 		     (get-wordnet-sense-keys word (list (constit-cat c)))
@@ -541,8 +639,8 @@
 			 (caar best-matches))))))
 		(if sense
 		    (set-kr-type sem (append sense-info (list (list 'WN (list sense)))))
-		    (set-kr-type sem sense-info)))
-	  (set-kr-type sem sense-info)))
+		    (set-kr-type sem sense-info)))|#
+	  (set-kr-type sem sense-info))
     c))
 
 
@@ -1014,11 +1112,13 @@
 (defun filter-sequences (msgs)
   "we are looking for sequences using punctuation that are not domain known entities already"
   (let ((sequences (remove-if-not #'(lambda (x)
-				      (and (not (message-domain-specific-info x))
-					   (member (message-pos x) '(w::NAME W::N))
+				      (progn
+					;(format t "~%~%message domain-specific-info:~S pos:~S word:~S" (message-domain-specific-info x) (message-pos x) (message-word x))
+					(and (not (message-domain-specific-info x))
+					     (intersection (message-pos x) '(W::NAME w::N))
 					   (let ((w  (coerce (message-word x) 'list)))
 					     (and (> (list-length w) 1)
-						  (intersection *sequence-separators* w  :test #'string-equal)))))
+						  (intersection *sequence-separators* w  :test #'string-equal))))))
 				  msgs)))
     (format t "~%~%SEQUENCES FOUND ARE ~S" sequences)
     (if (null sequences)

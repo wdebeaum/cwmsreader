@@ -14,9 +14,10 @@
 		:COMMENTS HTML-PURCHASING-CORPUS))
 ))))
 
-(define-words :pos W::v :templ AGENT-affected-XP-TEMPL
+(define-words :pos W::v :TEMPL AGENT-AFFECTED-XP-NP-TEMPL
  :words (
 (W::age
+  (wordfeats (W::morph (:forms (-vb) :nom w::aging))) 
    (SENSES
     ((meta-data :origin cause-result-relations :entry-date 20180803 :change-date nil :comments nil)
      (EXAMPLE "The death of his child aged him tremendously")

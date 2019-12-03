@@ -1,7 +1,7 @@
 #
 # config/python/lib.mk
 #
-# $Id: lib.mk,v 1.3 2018/07/06 15:00:12 wdebeaum Exp $
+# $Id: lib.mk,v 1.6 2019/10/29 18:46:12 wdebeaum Exp $
 #
 # The following should be defined before this file is included:
 #  MODULE - The name of this TRIPS module
@@ -22,21 +22,26 @@ install::
 
 # if we have requirements, install them in a virtualenv dir
 ifdef REQUIREMENTS
-VIRTUALENV=$(dir $(shell readlink `which $(PIP)` || which $(PIP)))virtualenv
+
+# We install our own local copy of the virtualenv package just to avoid
+# headaches trying to find the existing global one and/or install one with
+# sudo (which the user may not have permission to do). This also has the
+# advantage that this virtualenv will use the same version of python as the
+# configured pip by default.
+# https://xkcd.com/1987/
+VIRTUALENV=$(prefix)/bin/virtualenv
 VENV_DIR=$(etcdir)/venv
 VENV_SH=$(VENV_DIR)/bin/activate
-$(info VIRTUALENV=$(VIRTUALENV))
-$(info VENV_DIR=$(VENV_DIR))
-$(info VENV_SH=$(VENV_SH))
 
 $(VIRTUALENV):
-	sudo $(PIP) install virtualenv
+	$(PIP) install --ignore-installed --prefix=$(prefix) virtualenv
 
 $(VENV_SH): $(VIRTUALENV)
 	$(MKINSTALLDIRS) $(VENV_DIR)
 	$(VIRTUALENV) $(VENV_DIR)
 
+# NOTE: this uses "pip", not "$(PIP)", so that it uses venv's pip
 install:: $(REQUIREMENTS) $(VENV_SH)
-	# NOTE: this uses pip, not $(PIP), so that it uses venv's pip
 	. $(VENV_SH) ; pip install -r $<
+
 endif

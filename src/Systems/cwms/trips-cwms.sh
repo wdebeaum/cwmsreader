@@ -3,7 +3,7 @@
 # File: trips-cwms.sh
 # Creator: Lucian Galescu, based on template by George Ferguson
 # Created: Wed Jun 20 10:38:13 2012
-# Time-stamp: <Fri Oct 19 09:44:50 CDT 2018 lgalescu>
+# Time-stamp: <Mon Dec  2 15:06:43 CST 2019 lgalescu>
 #
 # trips-cwms: Run TRIPS/CWMS
 #
@@ -31,11 +31,16 @@ TRIPS_SYSNAME=cwms
 export TRIPS_SYSNAME # so we can use it in TT.conf
 TRIPS_SYSNAME_ALLCAPS=`echo $TRIPS_SYSNAME | tr "[:lower:]" "[:upper:]"`
 
+# test mode?
+if  test -n "$TRIPS_TEST_MODE"; then
+    echo "Running in test mode."
+fi
+
 #############################################################################
 #
 # Command-line
 
-usage="trips-$TRIPS_SYSNAME [-debug] [-port 6200] [-display tty] [-nouser] [-nochat] [-nolisp] [-nocsm] [-graphviz-display true] [-data DIR]"
+usage="trips-$TRIPS_SYSNAME [-debug] [-port 6200] [-display tty] [-nouser] [-nochat] [-nolisp] [-nocsm] [-graphviz-display true] [-reader] [-mapper] [-data DIR] [-store DIR]"
 
 logdir=''
 debug=false
@@ -51,7 +56,9 @@ nochat=''
 nobeep=''
 showgen=false
 reader=''
+mapper=''
 data_dir="${TRIPS_BASE}/etc/Data"
+ekb_storage_dir=''
 d_conf=''
 
 while test ! -z "$1"; do
@@ -72,8 +79,10 @@ while test ! -z "$1"; do
         -graphviz-display)      graphviz_display="$2";  shift;;
         -d-conf)	d_conf="$2";   shift;;
         -data)          data_dir="$2";  shift;;
+        -store)         ekb_storage_dir="$2";  shift;;
 	-showgen)	showgen=t;;
 	-reader)	reader=t;;
+	-mapper)	reader=t; mapper=t;;
 	-help|-h|-\?)
 	    echo "usage: $usage"
 	    exit 0;;
@@ -198,7 +207,7 @@ _EOF_
 fi
 
 # CSM
-if test -z "$nocsm"; then
+if test -z "$nocsm" -a -z "$reader" ; then
 cat - <<_EOF_ >>/tmp/trips$$
 (request
     :receiver facilitator
@@ -215,7 +224,7 @@ cat - <<_EOF_ >>/tmp/trips$$
 _EOF_
 fi
 
-# ChartDisplay
+# ChartDisplay, GraphDisplay
 if test -z "$nouser" -a -z "$reader" ; then
 cat - <<_EOF_ >>/tmp/trips$$
 (request
@@ -229,12 +238,36 @@ cat - <<_EOF_ >>/tmp/trips$$
 		   "$TRIPS_BASE/etc/java/TRIPS.util.cwc.jar"
 		   "$TRIPS_BASE/etc/java/TRIPS.util.jar")
     :argv ($port_opt)))
+(request
+    :receiver facilitator
+    :content (start-module
+    :name GraphDisplay
+    :class TRIPS.GraphDisplay.GraphDisplay
+    :urlclasspath ("$TRIPS_BASE/etc/java/TRIPS.GraphDisplay.jar"
+		   "$TRIPS_BASE/etc/java/TRIPS.TripsModule.jar"
+		   "$TRIPS_BASE/etc/java/TRIPS.KQML.jar"
+		   "$TRIPS_BASE/etc/java/TRIPS.util.cwc.jar"
+		   "$TRIPS_BASE/etc/java/TRIPS.util.jar")
+    :argv ($port_opt)))
 _EOF_
 fi
 
-# PDFExtractor
-if test -z "$nouser" ; then
+# DocumentRepo, PDFExtractor
+if test -z "$nouser" -a -z "$reader" ; then
 cat - <<_EOF_ >>/tmp/trips$$
+(request
+  :receiver Facilitator
+  :content (start-module
+	     :name documentrepo
+	     :class TRIPS.DocumentRepo.DocumentRepo
+	     :urlclasspath ("$TRIPS_BASE/etc/java/TRIPS.DocumentRepo.jar"
+			    "$TRIPS_BASE/etc/java/TRIPS.TripsModule.jar"
+			    "$TRIPS_BASE/etc/java/TRIPS.KQML.jar"
+			    "$TRIPS_BASE/etc/java/TRIPS.util.cwc.jar"
+			    "$TRIPS_BASE/etc/java/TRIPS.util.jar")
+	     :argv ($port_opt)
+	     )
+  )
 (request
     :receiver facilitator
     :content (start-module
@@ -249,6 +282,8 @@ cat - <<_EOF_ >>/tmp/trips$$
     :argv ($port_opt)))
 _EOF_
 fi
+
+# DrumGUI, A.K.A. Reader
 if test -n "$reader" ; then
 cat - <<_EOF_ >>/tmp/trips$$
 (request
@@ -276,7 +311,9 @@ fi
 
 # Lisp
 if test -z "$nolisp"; then
-  if test -n "$reader"; then
+  if test -n "$mapper"; then
+    export TRIPS_PARAMS_LISP=$TRIPS_BASE/etc/trips-cwms/params-cwmsmapper.lisp
+  elif test -n "$reader"; then
     export TRIPS_PARAMS_LISP=$TRIPS_BASE/etc/trips-cwms/params-cwmsreader.lisp
   fi
   (sleep 5; $TRIPS_BASE/bin/trips-$TRIPS_SYSNAME-lisp) 2>&1 | tee lisp.log &
@@ -297,24 +334,24 @@ fi
  $TRIPS_BASE/bin/Graphviz $port_opt -display-enabled $graphviz_display \
  2>&1 | tee Graphviz.err) &
 
+# GraphMatcher
+if test -n "$TRIPS_TEST_MODE" ; then
+    (sleep 5; \
+     $TRIPS_BASE/bin/GraphMatcher $port_opt -debug $debug \
+     2>&1 | tee GraphMatcher.err ) &
+fi
+
+if test -z "$reader"; then
+
 # Start HeadlessWeb
 (sleep 5; \
   $TRIPS_BASE/bin/HeadlessWeb $port_opt \
   2>&1 |tee HeadlessWeb.err) &
 
 # Start ImageDisplay
-if test -z "$reader"; then
 (sleep 5; \
   $TRIPS_BASE/bin/ImageDisplay $port_opt \
   2>&1 |tee ImageDisplay.err) &
-fi
-
-# Start GraphDisplay
-if test -z "$nouser" -a -z "$reader"; then
-(sleep 5; \
-  $TRIPS_BASE/bin/GraphDisplay $port_opt \
-  2>&1 |tee GraphDisplay.err) &
-fi
 
 # Start Spaceman
 (sleep 5; \
@@ -322,11 +359,9 @@ fi
   2>&1 |tee Spaceman.err) &
 
 # Start CropModeller
-if test -z "$reader"; then
 (sleep 5; \
   $TRIPS_BASE/bin/CropModeller $port_opt \
   2>&1 |tee CropModeller.err) &
-fi
 
 # Start VariableFinder
 (sleep 5; \
@@ -334,45 +369,41 @@ fi
   2>&1 |tee VariableFinder.err) &
 
 # Start TWISTAgent
-if test -z "$reader"; then
 (sleep 5; \
   $TRIPS_BASE/bin/TWISTAgent $port_opt \
   2>&1 |tee TWISTAgent.err) &
-fi
 
 # Start unit-converter
-if test -z "$reader"; then
 (sleep 5; \
   $TRIPS_BASE/bin/unit-converter $port_opt \
   2>&1 |tee unit-converter.err) &
-fi
 
 # Start ABN2
-if test -z "$reader"; then
 (sleep 5; \
   $TRIPS_BASE/bin/ABN2 $port_opt \
   2>&1 |tee ABN2.err) &
-fi
 
 # Start FoodSec
-if test -z "$reader"; then
 (sleep 5; \
   $TRIPS_BASE/bin/FoodSec $port_opt \
   2>&1 |tee FoodSec.err) &
-fi
 
 # Start WelfareBenes
-if test -z "$reader"; then
 (sleep 5; \
   $TRIPS_BASE/bin/WelfareBenes $port_opt \
   2>&1 |tee WelfareBenes.err) &
+
 fi
 
 # make sure we have the storage folder, even of empty
-mkdir -p ${TRIPS_BASE}/var
+ekbagent_opts=''
+if test -n "$ekb_storage_dir" ; then
+    mkdir -p "$ekb_storage_dir"
+    ekbagent_opts='-store "$ekb_storage_dir"'
+fi
 # Start EKBAgent
 (sleep 5; \
-  $TRIPS_BASE/bin/EKBAgent $port_opt -store ${TRIPS_BASE}/var \
+  $TRIPS_BASE/bin/EKBAgent $port_opt $ekbagent_opts \
   2>&1 |tee EKBAgent.err) &
 
 # set display option for facilitator           

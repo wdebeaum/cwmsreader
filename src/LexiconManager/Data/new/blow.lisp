@@ -17,7 +17,7 @@
     )
 ))
 
-(define-words :pos W::v :templ agent-theme-xp-templ
+(define-words :pos W::v :TEMPL AGENT-FORMAL-XP-TEMPL
  :words (
   (W::blow
    (wordfeats (W::morph (:forms (-vb) :past W::blew :pastpart W::blown :ing W::blowing)))
@@ -28,7 +28,7 @@
      (TEMPL expletive-templ) ; like rain
      )
     ((meta-data :origin "verbnet-2.0" :entry-date 20060315 :change-date nil :comments nil :vn ("weather-57") :wn ("blow%2:43:00"))
-     (LF-PARENT ONT::bodily-process)
+     (LF-PARENT ONT::blow)
      (example "he blew (on the fire)")
      (TEMPL agent-templ) 
      )

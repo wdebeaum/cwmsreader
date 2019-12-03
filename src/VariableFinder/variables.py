@@ -10,18 +10,21 @@ from yaml import safe_load
 class WMVariable:
 
     def __init__(self, resources_path):
-        print 'Loading VariableFinder resources...'
+        print('Loading VariableFinder resources...')
         wv_path = resources_path + '/counter-fitted-vectors-gensim.txt'
         stop_words_path = resources_path + '/stopwords.txt'
         self.stop_words = [line[:len(line) - 1] for line in open(stop_words_path)]
         self.word_vectors =  gensim.models.KeyedVectors.load_word2vec_format(wv_path, binary=False)
         self.load_vars(resources_path)
         self.split_codes_vars_defs()
-        print 'Done loading VariableFinder resources.'
+        print('Done loading VariableFinder resources.')
 
     def clean_text(self, r):
         """Return a plain ascii version of the string r."""
-        return r.decode('unicode_escape').encode('ascii', 'ignore')
+        if hasattr(r, 'decode'): # python 2
+            return r.decode('unicode_escape').encode('ascii', 'ignore')
+        else: # python 3
+            return r.encode('ascii', 'ignore').decode('ascii')
 
     def load_vars(self, resources_path):
         """Load and index variable and code tables."""
@@ -131,7 +134,7 @@ class WMVariable:
             ont_path = resources_path + '/' + ont_name + '_ontology.yml'
             with open(ont_path) as f:
                 yml = safe_load(f)
-                for ont_key, ont in yml[0].iteritems():
+                for ont_key, ont in yml[0].items():
                     self.append_eidos_var_clusters(ont_key, [], ont)
 
     def append_eidos_var_clusters(self, ont_key, id_prefix, node):
@@ -148,19 +151,19 @@ class WMVariable:
                 elif 'examples' in node:
                     leaf_descs = node['examples']
                 else:
-                    raise TypeError, "expected OntologyNode to have descriptions or examples, but found neither in " + str(node)
+                    raise TypeError("expected OntologyNode to have descriptions or examples, but found neither in " + str(node))
                 mp = {}
                 mp[ont_key] = leaf_id
                 mp['defs'] = leaf_descs
                 self.variables_clusters.append(mp)
             else:
-                for k, v in node.iteritems():
+                for k, v in node.items():
                     self.append_eidos_var_clusters(ont_key, id_prefix + [k], v)
         elif isinstance(node, list):
             for v in node:
                 self.append_eidos_var_clusters(ont_key, id_prefix, v)
         else:
-            raise TypeError, "expected dict or list, but got " + str(node)
+            raise TypeError("expected dict or list, but got " + str(node))
 
     def find_replacement(self, word):
         """
@@ -247,7 +250,7 @@ class WMVariable:
         res = []
         for entry in database:
             for d in entry['defs']:
-                r = Levenshtein.ratio(target.lower(), str(d).lower())
+                r = Levenshtein.ratio(str(target).lower(), str(d).lower())
                 if r >= thresh:
                     re = entry.copy()
                     re['score'] = float(r)
@@ -271,12 +274,12 @@ class WMVariable:
         """Tokenize code/var definitions."""
         for c in self.variables_clusters:
             c['defs_split'] = \
-                filter(lambda l: len(l) > 0,
-                       [self.tokenize_sentence(d) for d in c['defs']])
+                list(filter(lambda l: len(l) > 0,
+                            [self.tokenize_sentence(d) for d in c['defs']]))
         for c in self.all_codes:
             c['defs_split'] = \
-                filter(lambda l: len(l) > 0,
-                       [self.tokenize_sentence(d) for d in c['defs']])
+                list(filter(lambda l: len(l) > 0,
+                            [self.tokenize_sentence(d) for d in c['defs']]))
 
     def find_variables(self, target, exact_match_thresh=0.95, top_n=1):
         """Return the top top_n matches for target among variable defs."""

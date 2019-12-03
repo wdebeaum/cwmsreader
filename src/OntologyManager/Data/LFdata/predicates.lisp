@@ -2,7 +2,7 @@
 
 ;;; All these are predicates with arguments
 (define-type ONT::predicate
-  :parent ONT::abstract-object
+  :parent ONT::relation
   :comment "predications that require a subcat to form a modifier, typically adverbials (e.g., on, as well as)"
   :sem (F::ABSTR-OBJ (:default (F::GRADABILITY +) (F::scale -) (f::intensity -) (f::orientation -)  (F::CONTAINER -) (f::intentional -)))
   :arguments (;(:ESSENTIAL ONT::OF)
@@ -13,11 +13,13 @@
 	      )
   )
 
+
 (define-type ONT::modifier
  :parent ONT::PREDICATE
  :sem (F::ABSTR-OBJ  (:required (F::CONTAINER -) (f::intentional -))
 		     (:default (F::GRADABILITY +) (F::scale -) (f::intensity -) (f::orientation -)))
  :arguments ((:OPTIONAL ONT::GROUND)
+	     (:OPTIONAL ONT::NOROLE)
              )
  )
 
@@ -66,6 +68,13 @@
              )
  )
 
+(define-type ONT::in-scale
+	:parent ONT::SITUATION-MODIFIER 
+	:arguments ((:ESSENTIAL ONT::FIGURE ((? xxx F::Situation))) 
+		    (:REQUIRED ONT::GROUND ((? x F::ABSTR-OBJ) (F::type (? t ONT::DOMAIN))))
+		    )
+	)
+
 (define-type ONT::CONJUNCT
  :parent ONT::PREDICATE
  )
@@ -91,15 +100,20 @@
  )))
 
 (define-type ONT::DEGREE-MODIFIER-VERYHIGH
- :parent ONT::DEGREE-MODIFIER
+    :wordnet-sense-keys ("absolutely%4:02:00" "absolutely%4:02:01" "completely%4:02:04"
+					      "completely%4:02:03" "extremely%4:02:00"
+					      "extremely%4:02:02" "fully%4:02:02" "truly%4:02:04")
+			 :parent ONT::DEGREE-MODIFIER
  )
 
 (define-type ONT::DEGREE-MODIFIER-HIGH
+    :wordnet-sense-keys ("profusely%4:02:00" "very%4:02:00")
     :parent ONT::DEGREE-MODIFIER
     :arguments ((:REQUIRED ONT::FIGURE (F::abstr-obj (F::type ont::property-val))))
     )
 
 (define-type ONT::DEGREE-MODIFIER-HIGH-EVENT
+     :wordnet-sense-keys ("so%4:02:00")
     :parent ONT::DEGREE-MODIFIER
     :arguments ((:REQUIRED ONT::FIGURE (F::situation (F::type ont::event-of-experience)
 						     ))))
@@ -109,8 +123,9 @@
     )
 
 (define-type ONT::DEGREE-MODIFIER-LOW
- :parent ONT::DEGREE-MODIFIER
- )
+    :wordnet-sense-keys ("almost%4:02:00" "barely%4:02:00" "barely%4:02:02" "barely%4:02:03" "comparatively%4:02:00" "relatively%4:02:00" "slightly%4:02:01"  "slightly%4:02:02" "somewhat%4:02:01")
+    :parent ONT::DEGREE-MODIFIER
+    )
 
 (define-type ONT::DEGREE-MODIFIER-VERYLOW
  :parent ONT::DEGREE-MODIFIER
@@ -120,6 +135,7 @@
 (define-type ont::least-extent
  :parent ont::modifier
  :comment "to the least extent, to any extent"
+ :wordnet-sense-keys ("least%3:00:00")
 )
 
 ;; so (very good)
@@ -140,10 +156,11 @@
 
 (define-type ONT::PRIORITY
  :parent ONT::PREDICATE
+ :wordnet-sense-keys ("anyway%4:02:01")
  )
 
 (define-type ONT::QUALIFICATION
- :parent ONT::PREDICATE
+    :parent ONT::PREDICATE
  )
 
 (define-type ONT::RESTRICTION
@@ -199,6 +216,7 @@
 (define-type ONT::therefore
 ; :parent ONT::reason
  :parent ONT::situation-modifier
+ :wordnet-sense-keys ("therefore%4:02:00" "therefore%4:02:01")
  )
 
 (define-type ONT::PURPOSE
@@ -219,13 +237,11 @@
              )
  )
 
-; against
-(define-type ONT::CONTRA
+					; against
+(define-type ONT::CONTRA-FORCE
  :parent ONT::SITUATION-MODIFIER
- :arguments ((:ESSENTIAL ONT::FIGURE (F::Situation))
-;;             (:REQUIRED ONT::VAL (F::Situation (F::aspect F::dynamic)))
-	     ;; purposes don't have to be dynamic -- e.g. to store something, to remember, etc.
-	     (:REQUIRED ONT::GROUND (F::Situation))
+ :arguments ((:ESSENTIAL ONT::FIGURE (F::Situation)  (F::aspect F::dynamic) (F::type ont::event-of-action))
+	     (:REQUIRED ONT::GROUND ((? xx F::Situation F::phys-obj F::abstr-obj)))
              )
  )
 
@@ -307,11 +323,13 @@
  :parent ONT::scale-relation
  )
 
+; use AT-SCALE-VALUE instead
+#|
 ;; used in "he is nine years old"   --  he has value on scale AGE-SCALE of 9 years
 (define-type ONT::has-value-on-scale
  :parent ONT::scale-relation
  )
-
+|#
 
 ;; 5 (feet) by 10 (feet)
 (define-type ONT::dimension
@@ -324,12 +342,12 @@
              )
  )
 
-(define-type ONT::instrument
+#|(define-type ONT::instrument
  :parent ONT::SITUATION-MODIFIER
  :arguments ((:ESSENTIAL ONT::FIGURE (F::Situation (F::Aspect F::dynamic)))
              (:REQUIRED ONT::GROUND (F::Phys-obj (F::intentional -) (F::origin (? x F::non-living F::Artifact))))
              )
- )
+ )|#
 
 (define-type ONT::choice-option
  :parent ONT::PREDICATE
@@ -338,23 +356,24 @@
              )
  )
 
-(define-type ONT::attributed-information
+(define-type ONT::attributed-to
  :parent ONT::PREDICATE
- :arguments ((:ESSENTIAL ONT::FIGURE (F::situation))
-             (:REQUIRED ONT::GROUND ((? s F::Phys-obj F::abstr-obj)))
-             )
+ :arguments ((:ESSENTIAL ONT::FIGURE (F::situation (F::type (? t ont::HAVE-PROPERTY ont::CORRELATION))))
+             ;(:REQUIRED ONT::GROUND ((? s F::Phys-obj F::abstr-obj)))
+             (:ESSENTIAL ONT::GROUND (F::Phys-obj (f::intentional +)))
+	     )
  )
 
 (define-type ONT::manner
  :parent ONT::SITUATION-MODIFIER
- :arguments ((:ESSENTIAL ONT::FIGURE (F::situation (f::type ont::event-of-action)))
-             (:REQUIRED ONT::GROUND ((? at F::abstr-obj F::situation f::phys-obj) (f::intentional -))) ;; don't want times to work here
+ :arguments ((:ESSENTIAL ONT::FIGURE (F::situation (f::type (? ev ont::event-of-action ont::event-of-state))))
+             (:REQUIRED ONT::GROUND ((? at F::abstr-obj F::situation F::phys-obj) (f::intentional -))) ;; don't want times to work here
              )
  )
 
 (define-type ONT::by-means-of
  :parent ONT::SITUATION-MODIFIER
- :arguments ((:ESSENTIAL ONT::FIGURE (F::situation (F::type ont::event-of-change))) ;(f::aspect (? asp f::dynamic f::stage-level))))
+ :arguments ((:ESSENTIAL ONT::FIGURE (F::situation)) ;(F::type ont::event-of-change))) ;(f::aspect (? asp f::dynamic f::stage-level)))) ; event-of-state: "How is this related to/involved in that?"
              (:REQUIRED ONT::GROUND (F::situation)) ; how about: "by phone"?
              )
  )
@@ -379,13 +398,17 @@
              )
  )
 
+; moved into numerical-grouping-val
+#|
 (define-type ONT::exclusive   ; alone, myself
- :parent ONT::MANNER
+ :wordnet-sense-keys ("alone%4:02:00")
+  :parent ONT::MANNER
  )
 
 (define-type ONT::inclusive  ; co-, together
  :parent ONT::MANNER
  )
+|#
 
 ;; in that event
 (define-type ONT::situated-in
@@ -398,12 +421,12 @@
  )
 
 ;; out of the meeting
-(define-type ONT::situated-out
+#|(define-type ONT::situated-out
  :parent ONT::SITUATION-MODIFIER
  :arguments ((:ESSENTIAL ONT::FIGURE ((? xxx F::Situation F::PHYS-OBJ)))
              (:REQUIRED ONT::GROUND (F::situation))
              )
- )
+ )|#
 
 ;; for if-then sentences -- ont::conditional is currently in use for would and should
 (define-type ONT::CONDITION
@@ -452,6 +475,7 @@
 (define-type ONT::sequence-position
     :comment "Position related to discourse. e.g., First, we laugh"
     :parent ONT::PREDICATE
+    :wordnet-sense-keys ("rank%1:26:00")
     :arguments ((:REQUIRED ONT::FIGURE (F::Situation))
 		)
     )
@@ -480,6 +504,13 @@
              )
  )
 
+(define-type ONT::contrastive
+ :parent ONT::PREDICATE
+ :arguments ((:OPTIONAL ONT::GROUND)
+             )
+ :wordnet-sense-keys ("on_the_other_hand%4:02:00")
+ )
+
 (define-type ont::parenthetical
     :parent ONT::PREDICATE
     :arguments ((:REQUIRED ONT::FIGURE )
@@ -490,6 +521,7 @@
 ;;; etcetera, and so on...
 (define-type ONT::etcetera
  :parent ONT::PREDICATE
+ :wordnet-sense-keys ("etcetera%4:02:00")
  )
 
 ;;; swift 03/20/02 defined to handle 'vertical' and 'horizontal'

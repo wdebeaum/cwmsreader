@@ -7,8 +7,8 @@
   (W::repress
    (SENSES
     (
-     (lf-parent ont::hindering) 
-     (TEMPL agent-affected-xp-templ) 
+     (lf-parent ont::tame) 
+     (TEMPL AGENT-AFFECTED-XP-NP-TEMPL) 
      (example "I repressed my urge to eat M&Ms.")
      )
     )

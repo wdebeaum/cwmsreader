@@ -2,22 +2,23 @@
 ;;;; W::digest
 ;;;;
 
-(define-words :pos W::v :templ AGENT-THEME-XP-TEMPL
+(define-words :pos W::v :TEMPL AGENT-FORMAL-XP-TEMPL
  :words (
   (W::digest
+   (wordfeats (W::morph (:forms (-vb) :nom W::digestion)))
    (SENSES
     ((EXAMPLE "he digested the meal")
-     (LF-PARENT ONT::bodily-process)
+     (LF-PARENT ONT::digest)
      (meta-data :origin cardiac :entry-date 20090408 :change-date nil :comments nil)
-     (TEMPL agent-affected-xp-TEMPL)
+     (TEMPL AFFECTED-AFFECTED1-XP-NP-TEMPL)
      )
     ((EXAMPLE "he digested in silence")
-     (LF-PARENT ONT::bodily-process)
-     (TEMPL agent-TEMPL)
+     (LF-PARENT ONT::digest)
+     (TEMPL affected-TEMPL)
      )
-    ((LF-PARENT ONT::CONSUME)
-     (TEMPL agent-affected-xp-TEMPL)
-     )
+    ;((LF-PARENT ONT::CONSUME)
+     ;(TEMPL agent-affected-xp-TEMPL)
+;     )
     )
    )
 ))

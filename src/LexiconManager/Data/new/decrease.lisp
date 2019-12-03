@@ -2,7 +2,7 @@
 ;;;; w::decrease
 ;;;;
 
-(define-words :pos W::v :templ AGENT-affected-XP-TEMPL
+(define-words :pos W::v :TEMPL AGENT-AFFECTED-XP-NP-TEMPL
  :words (
 (w::decrease
   (wordfeats (W::morph (:forms (-vb) :nom W::decrease  :nomobjpreps (w::in w::of))))
@@ -16,9 +16,9 @@
   ((meta-data :origin step :entry-date 20080626 :change-date 20090504 :comments nil)
    (LF-PARENT ONT::decrease)
    (example "it decreased in temperature")
-   (templ affected-theme-xp-optional-templ  (xp (% W::PP (W::ptype (? pt w::in W::with)))))
+   (templ affected-templ))
    )
   )
  )
-))
+)
 

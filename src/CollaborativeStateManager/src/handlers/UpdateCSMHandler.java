@@ -104,14 +104,10 @@ public class UpdateCSMHandler extends MessageHandler implements Runnable {
 		case "unacceptable":
 		case "failure":
 			return handleFailedOn();
-		case "solved":
-			return handleSolved();
 		case "private-system-goal":
 			return handlePrivateSystemGoal();
 		case "problem":
 			return handleProblem();
-		case "ba-waiting":
-			return handleBaWaiting();
 		case "set-default-initiative":
 			return handleDefaultInitiative();
 		case "set-override-initiative":
@@ -229,11 +225,6 @@ public class UpdateCSMHandler extends MessageHandler implements Runnable {
 		return null;
 	}
 	
-	private KQMLList handleSolved() {
-		// TODO Auto-generated method stub
-		return null;
-	}
-
 	private KQMLList handleProposed()
 	{
 		KQMLList proposeContent = (KQMLList)(innerContent.getKeywordArg(":CONTENT"));
@@ -536,25 +527,31 @@ public class UpdateCSMHandler extends MessageHandler implements Runnable {
 		}
 		else if (acceptContent.get(0).stringValue().toUpperCase().contains("ASK"))
 		{
-			String query = null;
-			
-			if (acceptContent.getKeywordArg(":QUERY") != null)
-				query = acceptContent.getKeywordArg(":QUERY").stringValue();
-			
-			if (query == null)
-				query = acceptContent.getKeywordArg(":OF").stringValue();
 
-			
 			String what = "";
 			if (whatObject != null)
 				what = whatObject.stringValue();
-			String mapping = query + what;
 			
 			Goal foundQuery = goalPlanner.getGoalById(id);
 			if (foundQuery != null)
 			{
 				foundQuery.setAccepted();
 				goalPlanner.setActiveGoal(foundQuery);
+			}
+			
+		}
+		else if (acceptContent.get(0).stringValue().toUpperCase().contains("ANSWER"))
+		{
+
+			KQMLObject toObject = acceptContent.getKeywordArg(":TO");
+			String answerId = id;
+			if (toObject != null)
+				answerId = toObject.stringValue();
+			Query foundQuery = goalPlanner.getQueryMapping().get(answerId);
+			if (foundQuery != null)
+			{
+				
+				foundQuery.setAnswered(true);;
 			}
 			
 		}
@@ -616,10 +613,6 @@ public class UpdateCSMHandler extends MessageHandler implements Runnable {
 		return null;
 	}
 	
-	private KQMLList handleBaWaiting()
-	{
-		return null;
-	}
 	
 	// TODO: Store answer?
 	private KQMLList handleAnswer()

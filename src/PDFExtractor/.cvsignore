@@ -1,4 +1,6 @@
+MANIFEST.MF
 tabula-1.0.2-jar-with-dependencies.jar
 PDFExtractor
 .*.swp
-old
+old*
+doc

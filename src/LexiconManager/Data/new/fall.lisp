@@ -33,7 +33,7 @@
     ((meta-data :origin cardiac :entry-date 20080828 :change-date nil :comments nil)
      (lf-parent ont::become)
      (example "he fell asleep" "he fell ill") ;; overgenerates, e.g he fell awake
-     (templ affected-pred-templ)
+     (TEMPL AFFECTED-FORMAL-XP-PRED-TEMPL)
      )
     )
    )
@@ -47,10 +47,22 @@
    ((meta-data :wn ("fall%2:40:12"))
     (LF-PARENT ONT::incur-inherit-receive)
     ;(templ AFFECTED-result-XP-TEMPL (xp (% W::pp (W::ptype W::to))))
-    (TEMPL AFFECTED1-affected-TEMPL (xp (% W::pp (W::ptype W::to))))
+    (TEMPL AFFECTED1-AFFECTED-XP-TEMPL (xp (% W::pp (W::ptype W::to))))
     (example "The estate fell to the oldest daughter")
    ) 
   )
  )
 ))
 
+(define-words :pos W::v
+ :words (
+ ((W::fall (w::in))
+  (wordfeats (W::morph (:forms (-vb) :past W::fell :pastpart W::fall :ing W::falling)))
+  (SENSES
+   ((LF-PARENT ONT::enroll)
+    (templ agent-neutral-xp-TEMPL (xp (% W::PP (W::ptype (? p W::with)))))
+    (example "he fell in with the wrong crowd")
+   )
+  )
+ )
+))

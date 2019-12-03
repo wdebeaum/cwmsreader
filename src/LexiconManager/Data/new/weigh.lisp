@@ -2,7 +2,7 @@
 ;;;; W::weigh
 ;;;;
 
-(define-words :pos W::v :templ AGENT-THEME-XP-TEMPL
+(define-words :pos W::v :TEMPL AGENT-FORMAL-XP-TEMPL
  :words (
   (W::weigh
    (SENSES
@@ -17,7 +17,7 @@
      (SEM (F::Aspect F::dynamic) (F::Time-span F::extended))
      (TEMPL AGENT-neutral-XP-TEMPL)
      (example "he weighed the truck")
-     (preference .94) ;; prefer theme-value sense
+     (preference .94) 
      (meta-data :origin calo :entry-date 20041206 :change-date nil :comments caloy2 :vn ("register-54.1") :wn ("weigh%2:42:00" "weigh%2:42:01"))
      )
     )

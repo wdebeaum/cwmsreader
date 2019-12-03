@@ -66,7 +66,16 @@
 
  <xsl:template match="word">
   <xsl:if test="position() > 1"><xsl:text> </xsl:text></xsl:if>
-  <a href="../../lexicon/data/W::{.}.xml">
+  <a>
+   <xsl:choose>
+    <xsl:when test="/trips-parser-output/@system = 'GLOSS'">
+     <xsl:attribute name="href">lex-ont?side=lex&amp;q=<xsl:value-of select="." /></xsl:attribute>
+     <xsl:attribute name="target">lexicon</xsl:attribute>
+    </xsl:when>
+    <xsl:otherwise>
+     <xsl:attribute name="href">http://www.cs.rochester.edu/research/trips/lexicon/data/W::<xsl:value-of select="." />.xml</xsl:attribute>
+    </xsl:otherwise>
+   </xsl:choose>
    <xsl:value-of select="." />
   </a>
  </xsl:template>
@@ -129,7 +138,7 @@
  </xsl:template>
 
  <xsl:template match="terms">
-  <h2 title="The Logical Form as described in the &quot;LF Documentation&quot; link below. Words and ONT types (in the Lisp and AMR formats) link to the TRIPS Lexicon and Ontology Browsers, respectively.">Logical Form</h2>
+  <h2 class="lf" title="The Logical Form as described in the &quot;LF Documentation&quot; link below. Words and ONT types (in the Lisp and AMR formats) link to the TRIPS Lexicon and Ontology Browsers, respectively.">Logical Form</h2>
   <div class="lf-lisp">
    <xsl:apply-templates select="rdf:RDF" mode="lf-to-html" />
   </div>
@@ -141,13 +150,42 @@
   </div>
  </xsl:template>
 
+ <xsl:template match="alt-hyps">
+  <xsl:for-each select="*">
+   <div class="hyp-{position()}">
+    <xsl:apply-templates select="." />
+   </div>
+  </xsl:for-each>
+ </xsl:template>
+
  <!-- utterances according to the Parser -->
  <xsl:template match="utt">
-  <hr />
-  <xsl:apply-templates select="words" />
-  <xsl:apply-templates select="tags" />
-  <xsl:apply-templates select="terms" />
-  <xsl:apply-templates select="tree" />
+  <xsl:choose>
+   <xsl:when test="alt-hyps">
+    <div class="hyp-0">
+     <hr />
+     <xsl:apply-templates select="words" />
+     <xsl:apply-templates select="tags" />
+     <xsl:apply-templates select="terms" />
+     <xsl:apply-templates select="tree" />
+    </div>
+    <xsl:apply-templates select="alt-hyps" />
+   </xsl:when>
+   <xsl:otherwise>
+    <hr />
+    <xsl:apply-templates select="words" />
+    <xsl:apply-templates select="tags" />
+    <xsl:apply-templates select="terms" />
+    <xsl:apply-templates select="tree" />
+   </xsl:otherwise>
+  </xsl:choose>
+ </xsl:template>
+
+ <xsl:template match="compound-communication-act[alt-hyps]">
+  <div class="hyp-0">
+   <xsl:apply-templates select="utt" />
+  </div>
+  <xsl:apply-templates select="alt-hyps" />
  </xsl:template>
 
  <!-- utterances according to TextTagger -->
@@ -195,6 +233,7 @@
     #extraction-options { display: none; }
    ]]>
   </style>
+  <style type="text/css"></style>
   <link rel="stylesheet" type="text/css" href="../style/parser-interface.css" />
  </xsl:template>
 
@@ -364,7 +403,103 @@
    </xsl:otherwise>
   </xsl:choose>
  </xsl:template>
+
+ <xsl:template match="*" mode="serialize">
+  <xsl:text>&lt;</xsl:text>
+  <xsl:value-of select="name()" />
+  <!-- ick, special case rdf xmlns declarations (which aren't technically attributes so don't match @* ?) -->
+  <xsl:if test="self::rdf:RDF">
+   <xsl:text>
+  xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+  xmlns:role="http://www.cs.rochester.edu/research/trips/role#"
+  xmlns:LF="http://www.cs.rochester.edu/research/trips/LF#"</xsl:text>
+  </xsl:if>
+  <xsl:apply-templates select="@*" mode="serialize" />
+  <xsl:choose>
+   <xsl:when test="*|text()">
+    <xsl:text>&gt;</xsl:text>
+    <xsl:apply-templates select="*|text()" mode="serialize" />
+    <xsl:text>&lt;/</xsl:text>
+    <xsl:value-of select="name()" />
+    <xsl:text>&gt;</xsl:text>
+   </xsl:when>
+   <xsl:otherwise>
+    <xsl:text> /&gt;</xsl:text>
+   </xsl:otherwise>
+  </xsl:choose>
+ </xsl:template>
  
+ <xsl:template match="text()" mode="serialize">
+  <xsl:variable name="escaped-text-1">
+   <xsl:call-template name="str:replace">
+    <xsl:with-param name="string" select="string(.)" />
+    <xsl:with-param name="search" select="'&amp;'" />
+    <xsl:with-param name="replace" select="'&amp;amp;'" />
+   </xsl:call-template>
+  </xsl:variable>
+  <xsl:variable name="escaped-text-2">
+   <xsl:call-template name="str:replace">
+    <xsl:with-param name="string" select="string(exsl:node-set($escaped-text-1))" />
+    <xsl:with-param name="search" select="'&lt;'" />
+    <xsl:with-param name="replace" select="'&amp;lt;'" />
+   </xsl:call-template>
+  </xsl:variable>
+  <xsl:value-of select="exsl:node-set($escaped-text-2)" />
+ </xsl:template>
+
+ <xsl:template match="@*" mode="serialize">
+  <xsl:text> </xsl:text>
+  <xsl:value-of select="name()" />
+  <xsl:text>="</xsl:text>
+  <xsl:variable name="escaped-text-1">
+   <xsl:call-template name="str:replace">
+    <xsl:with-param name="string" select="string(.)" />
+    <xsl:with-param name="search" select="'&amp;'" />
+    <xsl:with-param name="replace" select="'&amp;amp;'" />
+   </xsl:call-template>
+  </xsl:variable>
+  <xsl:variable name="escaped-text-2">
+   <xsl:call-template name="str:replace">
+    <xsl:with-param name="string" select="string(exsl:node-set($escaped-text-1))" />
+    <xsl:with-param name="search" select="'&quot;'" />
+    <xsl:with-param name="replace" select="'&amp;quot;'" />
+   </xsl:call-template>
+  </xsl:variable>
+  <xsl:value-of select="exsl:node-set($escaped-text-2)" />
+  <xsl:text>"</xsl:text>
+ </xsl:template>
+ 
+ <xsl:template name="hyps-form">
+  <xsl:if test="@input">
+   <form action="save.pl" method="POST">
+    <xsl:choose>
+     <xsl:when test="//alt-hyps">
+      <label title="Choose the index of the parsing hypothesis to display.">
+       Show parsing hypothesis #
+       <input id="hyp" name="hyp" type="number" min="0" max="{/trips-parser-output/@number-parses-desired - 1}" value="0" onchange="displayHyp(parseInt(this.value))" />
+      </label>
+     </xsl:when>
+     <xsl:otherwise>
+      <input type="hidden" name="hyp" value="0" />
+     </xsl:otherwise>
+    </xsl:choose>
+    For internal use (login required):
+    <input type="submit" name="judgement" value="this hypothesis is correct" title="Save these results, with the judgement that the currently displayed hypothesis is completely correct." />
+    <input type="submit" name="judgement" value="all hypotheses are incorrect" title="Save these results, with the judgement that all the available hypotheses are incorrect." /><br />
+    <textarea name="comments" placeholder="Comments..." cols="80"><xsl:value-of select="/trips-parser-output/@comments" /></textarea>
+    <input type="hidden" name="results">
+     <xsl:attribute name="value">
+      <xsl:text>&lt;?xml version="1.0" encoding="UTF-8"?&gt;
+ &lt;?xml-stylesheet type="text/xsl" href="../style/parser-interface.xsl"?&gt;
+ &lt;!DOCTYPE trips-parser-output SYSTEM "../trips-parser-output.dtd"&gt;
+ </xsl:text>
+      <xsl:apply-templates select="/" mode="serialize" />
+     </xsl:attribute>
+    </input>
+   </form>
+  </xsl:if>
+ </xsl:template>
+
  <xsl:template name="footer">
   <hr />
   <div><a href="http://www.cs.rochester.edu/research/trips/lexicon/browse-ont-lex-ajax.html">Browse the TRIPS Lexicon and Ontology</a></div>
@@ -373,7 +508,25 @@
   <div>Parser built on
    <xsl:value-of select="@parser-build-date" />
   </div>
-  <p>Development of this system has been supported in part by The National Science Foundation (grants 0958193 and 1012205), the Office of Naval Research (grant N000141110417) and the DARPA Big Mechanism program (grant W911NF-14-11-0391).</p>
+  <xsl:if test="@system = 'DRUM' or @system = 'BOB' or contains(@tag-type, 'drum')">
+   <p>Some TextTagger tags from the Drum tagger are derived from the <a href="https://www.nlm.nih.gov/mesh/meshhome.html">MeSH&#174;</a> SCR data set from <a href="https://www.nlm.nih.gov/">NLM</a>, but these may not reflect the most current data available from NLM, and NLM has not endorsed this service. See also this <a href="http://trips.ihmc.us/TextTagger/docs/README.xhtml#sec-5.7.9.">table of data sources</a> for the Drum tagger.</p>
+  </xsl:if>
+  <p>Development of this system has been supported in part by:</p>
+  <ul>
+   <li>The National Science Foundation (grants 0958193 and 1012205)</li>
+   <xsl:choose>
+    <xsl:when test="@system = 'DRUM'">
+     <li>The Office of Naval Research (grant N000141110417)</li>
+     <li>The DARPA Big Mechanism program (grant W911NF-14-11-0391)</li>
+    </xsl:when>
+    <xsl:when test="@system = 'CWMS'">
+     <li>The DARPA World Modelers program under Army Research Office contract W911NF-18-1-0464</li>
+    </xsl:when>
+    <xsl:otherwise>
+     <li>The DARPA CWC program under Army Research Office contract W911NF-15-1-0542</li>
+    </xsl:otherwise>
+   </xsl:choose>
+  </ul>
  </xsl:template>
 
  <xsl:template match="/trips-parser-output | /texttagger-output">
@@ -470,6 +623,7 @@
 	    </ul>
 	   </li>
 	  </xsl:if>
+	  <li title="Accepts native tags in the :input-tags argument and integrates them into TextTagger's output as if they originated within TextTagger."><label><input type="checkbox" /> input</label></li>
 	  <xsl:if test="@system = 'WEB-TOOLS' or @system = 'BOB'">
 	   <li title="Uses GNU Aspell to correct misspellings. Sometimes aspell will split words; in that case this tagger also outputs subword tags. We use the Specialist lexicon for the spelling dictionary."><label><input type="checkbox" /> misspellings</label></li>
 	  </xsl:if>
@@ -484,6 +638,9 @@
 	  </xsl:if>
 	  <xsl:if test="@system = 'WEB-TOOLS' or @system = 'STEP'">
 	   <li title="Tags personal names, with their gender if it's not too ambiguous. Uses the SSA names list."><label><input type="checkbox" /> personal_names</label></li>
+	  </xsl:if>
+	  <xsl:if test="@system = 'WEB-TOOLS' or @system = 'CWMS'">
+	   <li title="Looks up place names from several resources (including those of the Countries and Terms taggers, among others), in a similar way to the Drum tagger."><label><input type="checkbox" /> place_names</label></li>
 	  </xsl:if>
 	  <li title="Tags certain (often abbreviated) phrases occurring in prescriptions as either adjectives or adverbs."><label><input type="checkbox" /> prescriptions</label></li>
 	  <li title="Tags each punctuation character."><label><input type="checkbox" /> punctuation</label></li>
@@ -525,15 +682,18 @@
 	  </xsl:choose>
 	  <li title="Uses the Geo::StreetAddress::US Perl module to tag anything that could be the first line of a US address (e.g. &quot;40 S. Alcaniz St.&quot;)."><label><input type="checkbox" /> street_addresses</label></li>
 	  <xsl:if test="@system != 'CABOT'">
-	   <li title="Tags any substring that matches a name in the GNIS database as a named-entity with type ONT::geographic-region."><label><input type="checkbox" /> terms</label> (geographic names)</li>
+	   <li title="Tags any substring that matches a name in the GNIS database as a named-entity with type ONT::geographic-region."><label><input type="checkbox" /> terms</label> (US geographic names)</li>
 	  </xsl:if>
-	  <li title="Tags non-first variants in slash- or ampersand-separated lists of variants like &quot;Smad1/5/8&quot; as alternate spellings that include the prefix, like &quot;5&quot; -> &quot;Smad5&quot; and &quot;8&quot; -> &quot;Smad8&quot;. The Words tagger should already get the first one, &quot;Smad1&quot;."><label><input type="checkbox" /> variant-lists</label></li>
+	  <li title="Tags anything matching the :lex (or :text) argument of any of the tags from the :input-terms list with a copy of the matching tag(s)."><label><input type="checkbox" /> terms_input</label></li>
+	  <li title="Tags non-first variants in slash- or ampersand-separated lists of variants like &quot;Smad1/5/8&quot; as alternate spellings that include the prefix, like &quot;5&quot; -> &quot;Smad5&quot; and &quot;8&quot; -> &quot;Smad8&quot;. The Words tagger should already get the first one, &quot;Smad1&quot;."><label><input type="checkbox" /> variant_lists</label></li>
 	  <li title="Tags multi-word lexical items from WordNet with their sense key, part of speech, and morphology."><label><input type="checkbox" /> word_net</label></li>
 	  <li title="Tags anything that the Parser might want to consider a separate word. That includes splitting CamelCase and contractions, among other things."><label><input type="checkbox" /> words</label> (highly recommended!)</li>
 	  <xsl:if test="@system != 'STEP'">
 	   <li>Please note that in this version of the web parser, even if you select one of the sentence- or clause- splitting taggers, the TRIPS Parser will still see the whole input as one "utterance" and may not decide to split it in the same way, or at all. If you want it to split the same way, use <a href="drum">the drum paragraph parser</a> instead.</li>
 	  </xsl:if>
 	 </ul>
+	<label>Input tags:<br/>
+	 <textarea name="input-tags" id="input-tags" placeholder="Enter a Lispy list of native tags with :start/:end."><xsl:value-of select="@input-tags" /></textarea></label><br/>
 	<label>Input terms:<br/>
 	 <textarea name="input-terms" id="input-terms" placeholder="Enter a Lispy list of native tags without :start/:end."><xsl:value-of select="@input-terms" /></textarea></label><br/>
 	<label>Output sense information only for words with Penn POS tags: <input type="text" name="senses-only-for-penn-poss" id="senses-only-for-penn-poss" value="{@senses-only-for-penn-poss}" /></label> (enter a comma-separated list of tags, or use the <a href="javascript:toggleDisplay('senses-only-for-penn-poss-checkboxes')" title="Show/hide Penn POS checkboxes.">checkboxes</a>)<br />
@@ -615,17 +775,22 @@
        </div>
       </xsl:if>
       <xsl:if test="/trips-parser-output">
-       <xsl:if test="@system = 'STEP'">
+       <xsl:if test="@system = 'STEP' or @number-parses-desired">
 	| <a href="javascript:toggleDisplay('parser-options')" title="Click here to show/hide options for the main Parser component. These are applied for the next input you parse.">Parser options</a>
 	<div id="parser-options">
-	 <ul class="checkboxes" id="parser-checkboxes">
-	  <li><label><input type="checkbox" name="semantic-skeleton-scoring">
-	   <xsl:if test="@semantic-skeleton-scoring">
-	    <xsl:attribute name="checked">checked</xsl:attribute>
-	   </xsl:if>
-	  </input>
-	  semantic skeleton scoring</label></li>
-	 </ul>
+	 <xsl:if test="@system = 'STEP'">
+	  <ul class="checkboxes" id="parser-checkboxes">
+	   <li><label><input type="checkbox" name="semantic-skeleton-scoring">
+	    <xsl:if test="@semantic-skeleton-scoring">
+	     <xsl:attribute name="checked">checked</xsl:attribute>
+	    </xsl:if>
+	   </input>
+	   semantic skeleton scoring</label></li>
+	  </ul>
+	 </xsl:if>
+	 <xsl:if test="@number-parses-desired">
+	  <label>Number of parsing hypotheses desired: <input type="number" name="number-parses-desired" min="1" max="20" value="{@number-parses-desired}" /></label>
+	 </xsl:if>
 	</div>
        </xsl:if>
        <xsl:if test="@system">
@@ -667,6 +832,7 @@
       |
      </div>
     </form>
+    <xsl:call-template name="hyps-form" />
     <xsl:apply-templates />
     <xsl:call-template name="footer" />
    </body>

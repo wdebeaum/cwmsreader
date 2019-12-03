@@ -2,13 +2,14 @@
 ;;;; W::laugh
 ;;;;
 
-(define-words :pos W::v :templ AGENT-THEME-XP-TEMPL
+(define-words :pos W::v :TEMPL AGENT-FORMAL-XP-TEMPL
  :tags (:base500)
  :words (
 (W::laugh
    (SENSES
-    ((LF-PARENT ONT::NONVERBAL-EXPRESSION)
+    ((LF-PARENT ONT::SOUND-EXPRESSION)
      (SEM (F::Cause F::Agentive) (F::Aspect F::unbounded) (F::Time-span F::extended))
+     (EXAMPLE "She laughed loudly.")
      (TEMPL AGENT-TEMPL)
      )
     )

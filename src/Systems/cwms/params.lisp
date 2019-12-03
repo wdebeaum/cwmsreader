@@ -53,7 +53,7 @@
 	;((parser::setmaxchartsize 3000))
 	((parser::setmaxchartsize 8000))
 	;;
-	;;(parser::*kr-type-info-desired* '(:WNsense :DRUM :wordnet))
+	(parser::*kr-type-info-desired* '(:WNsense :CWMS :wordnet))
 	;;
 	((setf (parser::flexible-semantic-matching parser::*chart*) t))
 	;; boost content words that have domain specific info attached
@@ -68,18 +68,18 @@
 	
 	((parser::customize-cost-table 
 	  '((ont::SA_QUERY 1.2) 
-	     (ont::SA_IDENTIFY 2) 
-	     (ont::SA_pred-fragment 2) 
-	     (ont::SA_request 1) 
-	     (ont::SA_YN-QUESTION 1) 
-	     (w::ADJP 1.2) 
-	     (w::advbl 1.3)
-	     (ont::SA_CONFIRM 1) 
+	    (ont::SA_IDENTIFY 1.1) 
+	    (ont::SA_pred-fragment 2) 
+	    (ont::SA_request 1) 
+	    (ont::SA_YN-QUESTION 1) 
+	    (w::ADJP 1.3) 
+	    (w::advbl 1.3)
+	    (ont::SA_CONFIRM 1) 
 	    (ont::SA_WH-QUESTION 1) 
-	     (ont::SA_TELL 1)
-	     (w::CP 2) 
-	     (w::VP 1.1) 
-	     (w::punc .5))))
+	    (ont::SA_TELL 1)
+	    (w::CP 2) 
+	    (w::VP 1.3) 
+	    (w::punc .5))))
 	))
 (parser::initialize-settings) 
 
@@ -109,7 +109,7 @@
 ;; use WordFinder?
 (setq lxm::*use-wordfinder* t)
 ;; we are trying to really depend on the Stanford parser (for now!)
-(setq lxm::*use-tagged-senses-only* t)
+(setq lxm::*use-tagged-senses-only* nil)
 ;; don't use wordnet if we have domain-specific info from TextTagger
 (setq lxm::*no-wf-senses-for-words-tagged-with-ont-types* t)
 ;; don't use wordnet if we have TRIPS entries  
@@ -123,7 +123,7 @@
 (setq dagent::*silent-failures* nil)  ;; don't ignore utterance failure
 (setq dagent::*using-alarms* nil)   ;; no alarms
 (setq dagent::*disabled-wizard* t)  ;; no wizard
-(setq dagent::*use-quick-generator* t)
+(setq dagent::*use-quick-generator* nil)
 (dagent::trace-on 1)
 
 ; just the default user
@@ -131,8 +131,10 @@
 
 ;; and here's the state definitions for the dialogue manager
 
-(setq im::*extraction-sequence* '((im::preprocessRules) (im::cwmsRules) (im::drum) (im::cwms_ev_add) (im::drumMod) (im::cwmsCC) (im::postprocessRules)))
+;(setq im::*extraction-sequence* '((im::preprocessRules) (im::cwmsRules) (im::drum) (im::cwms_ev_add) (im::drumMod) (im::cwmsCC) (im::postprocessRules)))
+(setq im::*extraction-sequence* nil)
+
 (setq im::*substitute-terms-in-extraction* t)
-(setq im::*roles-to-emit* nil)
+(setq im::*roles-to-emit* nil) ; reloading drumrules_ev will overwrite this
 
 (setq dagent::*external-CSM* t)

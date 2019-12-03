@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>DocumentRepo</title>
+<meta charset="UTF-8">
+<style type="text/css">
+code, code pre {
+  background-color: LightGray;
+}
+var {
+  background-color: SkyBlue;
+}
+</style>
+</head>
+<body>
+<h1>DocumentRepo</h1>
+William de Beaumont<br>
+$Date: 2019/09/17 17:53:36 $
+
+<h2>Introduction</h2>
+<p>DocumentRepo is a TRIPS module that stores metadata about documents, and allows the user to select from a list of those documents.</p>
+
+<p>In this document, computer code is displayed like <code>this</code>, and variables like <code><var>this</var></code>. Optional parts are within square brackets <code>[ ]</code>, and alternatives are separated by pipes within curly braces <code>{ | | }</code>.</p>
+
+<h2>Prerequisites</h2>
+<p>You will need Java and SQLite3 (you probably already have them).</p>
+
+<h2>Installation</h2>
+<p>DocumentRepo can be installed in the usual way:</p>
+<code><pre>
+  make
+  make install
+</pre></code>
+
+<h2>Usage</h2>
+<p>Run DocumentRepo like any other TRIPS module:</p>
+<code><pre>
+  <var>$TRIPS_BASE</var>/bin/DocumentRepo [ -connect { <var>host</var>:<var>port</var> | no } ]
+</pre></code>
+
+<p>Or, since it runs on the JVM, you may start it by sending a KQML message to the Facilitator like this:</p>
+<code><pre>
+  (request
+    :receiver Facilitator
+    :content (start-module
+               :name documentrepo
+	       :class TRIPS.DocumentRepo.DocumentRepo
+	       :urlclasspath ("<var>$TRIPS_BASE</var>/etc/java/TRIPS.DocumentRepo.jar"
+                              "<var>$TRIPS_BASE</var>/etc/java/TRIPS.TripsModule.jar"
+                              "<var>$TRIPS_BASE</var>/etc/java/TRIPS.KQML.jar"
+                              "<var>$TRIPS_BASE</var>/etc/java/TRIPS.util.cwc.jar"
+                              "<var>$TRIPS_BASE</var>/etc/java/TRIPS.util.jar")
+               :argv ( [ "-connect" "<var>host</var>:<var>port</var>" ] )
+               )
+    )
+</pre></code>
+
+<h3>The <code>display-document-list</code> request</h3>
+
+<code><pre>
+  (request :content (display-document-list))
+</pre></code>
+
+<p>This will display a window containing a table of documents and their metadata. When the user selects a row of the table, a report like this is sent:</p>
+
+<code><pre>
+  (tell :content (report :content (selected
+    :what (file :name "<var>document-filename</var>" :format <var>file-format</var>)
+    :who usr
+    )))
+</pre></code>
+
+<p>And more metadata for the selected file is shown in the details area at the bottom of the window.</p>
+
+<h3>The <code>put-metadata</code> request</h3>
+
+<code><pre>
+  (request :content (put-metadata
+    :file <var>file</var>
+    [ <var>other-fields...</var> ]
+    ))
+</pre></code>
+
+<p>This will store metadata associated with <var>file</var>, which can be a <code>(file <var>...</var>)</code> structure as above, or just the filename string. If the file is already in the repo, any unmentioned fields will keep their old values. If the file is not already in the repo, unmentioned fields will be <code>NULL</code>. For new files, you should include at least the <code>:format</code>, either in the <code>(file <var>...</var>)</code> structure, or as a separate field.</p>
+
+<h3>The <code>get-metadata</code> request</h3>
+
+<code><pre>
+  (request :content (get-metadata :file <var>file</var>))
+  (reply :content (report :content (answer <var>fields...</var>)))
+</pre></code>
+
+<p>This will retrieve metadata associated with <var>file</var> (which may be specified in the same ways as for <code>put-metadata</code>). Only non-<code>NULL</code> fields are included.</p>
+
+<h3>Drag and drop</h3>
+
+<p>You can drag and drop files from other applications onto the table in order to add them as new rows in the table. DocumentRepo will attempt to guess the format of the file from the end of the filename. It will leave other fields blank. You can also go the other direction, and drag a file from the table (or the details area) to another application.</p>
+
+<h2>Database Schema</h2>
+
+<p>The document metadata fields you may use are defined as columns of the <code>documents</code> table in the database <a href="schema.sqlite">schema</a>, shown below. (The other tables are not yet used.) These fields are loosely based on <a href="https://www.dublincore.org/specifications/dublin-core/dcmi-type-vocabulary/">Dublin Core Metadata Initiative (DCMI)</a>.</p>
+
+<iframe style="width: 100%; height: 30em; background-color: LightGray" src="schema.sqlite"></iframe>
+
+</body>
+</html>

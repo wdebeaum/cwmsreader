@@ -8,6 +8,7 @@ import TRIPS.KQML.KQMLString;
 import TRIPS.util.cwc.InvalidArgument;
 import TRIPS.util.cwc.UnknownObject;
 
+/** Something that can be referred to in a KQML message by its ID. */
 public interface HasID {
   /** Get the unique, case-insensitive string that identifies this object. */
   String getID();

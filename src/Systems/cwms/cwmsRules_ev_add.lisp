@@ -8,7 +8,8 @@
 	  ;;;;;;;;;;;;;;;;;;;
 	  ;;;; LOC rules
 	  ;;;;;;;;;;;;;;;;;;;
-	  
+
+	  #|
 	  ; :FIGURE of ?!loc points to ?ev
           ;; modified from rule40_2_AGENT_AFFECTED-CELL_LOC1-gd-others rule with AGENT and AFFECTED
           ((?!reln0 ?ev ?type
@@ -40,6 +41,7 @@
             ;:DRUM ?code
             )
            )
+	  |#
 
 	  ; no FIGURE; :LOCATION points to ?!loc
           ;; modified from rule40_2_AGENT_AFFECTED-CELL_LOC1-gd-others rule with AGENT and AFFECTED
@@ -66,6 +68,7 @@
             ;:AFFECTED ?!obj
             :LOCMOD ?tmp
             :LOC ?!locVal
+	    :LOCATION -
             ;:MODALITY ?modVal   ; these are automatically passed on in cwms (but not in DRUM!)
             ;:FORCE ?fVal
             ;:DEGREE ?type_degree
@@ -138,6 +141,7 @@
             ;:AFFECTED ?!obj
             :LOCMOD ?tmp
             :LOC ?!locVal
+	    :SOURCE -
             ;:MODALITY ?modVal   ; these are automatically passed on in cwms (but not in DRUM!)
             ;:FORCE ?fVal
             ;:DEGREE ?type_degree
@@ -146,7 +150,53 @@
             ;:DRUM ?code
             )
            )
-	   
+
+	  #| this is now split into two rules so we can zero out the :RESULT and/or :RESULT1
+	  ; no FIGURE; :RESULT points to ?!loc
+          ;; modified from rule40_2_AGENT_AFFECTED-CELL_LOC1-gd-others rule with AGENT and AFFECTED
+          ((?!reln0 ?ev ?type
+	    ;:AGENT ?!ag :AFFECTED ?!obj :DRUM ?code
+		    :MODALITY ?modVal :FORCE ?fVal :DEGREE ?var_degree :FREQUENCY ?var_freq :OPERATOR -
+		    :RESULT ?!loc :RESULT1 ?!loc1)
+           ;(?reln1 ?!ag  (? t1 ONT::REFERENTIAL-SEM))
+           ;(?reln2 ?!obj (? t2 ONT::PHYS-OBJECT ONT::ABSTRACT-OBJECT ONT::PART))
+           (ONT::F ?var_degree ?type_degree)  
+           (ONT::F ?var_freq ?type_freq)
+           (ONT::F ?!loc
+		   (? tmp ONT::POSITION-RELN ONT::PATH)
+		   ;(? tmp ONT::IN-LOC ONT::AT-LOC ONT::ON ONT::OUTSIDE ONT::TRAJECTORY ONT::POS-AS-INTERSECTION)
+		   :GROUND ?!locVal)
+		   ;:FIGURE ?ev)
+           (?relnLoc ?!locVal (? locType ONT::PHYS-OBJECT ONT::ABSTRACT-OBJECT ONT::PART))
+           (ONT::F ?!loc1
+		   (? tmp1 ONT::POSITION-RELN ONT::PATH)
+		   ;(? tmp ONT::IN-LOC ONT::AT-LOC ONT::ON ONT::OUTSIDE ONT::TRAJECTORY ONT::POS-AS-INTERSECTION)
+		   :GROUND ?!locVal1)
+		   ;:FIGURE ?ev)
+           (?relnLoc1 ?!locVal1 (? locType1 ONT::PHYS-OBJECT ONT::ABSTRACT-OBJECT ONT::PART))
+           ;(ONT::EVAL (symbolmap ?type ?!eventName -rule40_2_AGENT_AFFECTED))
+           -loc4>
+           40
+           (?!reln0 ?ev ?type ;?!eventName
+            :rule -loc4
+            ;:AGENT ?!ag
+            ;:AFFECTED ?!obj
+            :LOCMOD ?tmp
+            :LOC ?!locVal
+	    :LOCMOD1 ?tmp1
+	    :LOC1 ?!locVal1
+	    :RESULT -
+	    :RESULT1 -
+            ;:MODALITY ?modVal   ; these are automatically passed on in cwms (but not in DRUM!)
+            ;:FORCE ?fVal
+            ;:DEGREE ?type_degree
+            ;:FREQUENCY ?type_freq
+            :TYPE ?type
+            ;:DRUM ?code
+            )
+           )
+	  |#
+
 	  ; no FIGURE; :RESULT points to ?!loc
           ;; modified from rule40_2_AGENT_AFFECTED-CELL_LOC1-gd-others rule with AGENT and AFFECTED
           ((?!reln0 ?ev ?type
@@ -164,14 +214,15 @@
 		   ;:FIGURE ?ev)
            (?relnLoc ?!locVal (? locType ONT::PHYS-OBJECT ONT::ABSTRACT-OBJECT ONT::PART))
            ;(ONT::EVAL (symbolmap ?type ?!eventName -rule40_2_AGENT_AFFECTED))
-           -loc4>
+           -loc4a>
            40
            (?!reln0 ?ev ?type ;?!eventName
-            :rule -loc4
+            :rule -loc4a
             ;:AGENT ?!ag
             ;:AFFECTED ?!obj
             :LOCMOD ?tmp
             :LOC ?!locVal
+	    :RESULT -
             ;:MODALITY ?modVal   ; these are automatically passed on in cwms (but not in DRUM!)
             ;:FORCE ?fVal
             ;:DEGREE ?type_degree
@@ -181,6 +232,41 @@
             )
            )
 
+	  ; no FIGURE; :RESULT points to ?!loc
+          ;; modified from rule40_2_AGENT_AFFECTED-CELL_LOC1-gd-others rule with AGENT and AFFECTED
+          ((?!reln0 ?ev ?type
+	    ;:AGENT ?!ag :AFFECTED ?!obj :DRUM ?code
+		    :MODALITY ?modVal :FORCE ?fVal :DEGREE ?var_degree :FREQUENCY ?var_freq :OPERATOR -
+		    :RESULT1 ?!loc)
+           ;(?reln1 ?!ag  (? t1 ONT::REFERENTIAL-SEM))
+           ;(?reln2 ?!obj (? t2 ONT::PHYS-OBJECT ONT::ABSTRACT-OBJECT ONT::PART))
+           (ONT::F ?var_degree ?type_degree)  
+           (ONT::F ?var_freq ?type_freq)
+           (ONT::F ?!loc
+		   (? tmp ONT::POSITION-RELN ONT::PATH)
+		   ;(? tmp ONT::IN-LOC ONT::AT-LOC ONT::ON ONT::OUTSIDE ONT::TRAJECTORY ONT::POS-AS-INTERSECTION)
+		   :GROUND ?!locVal)
+		   ;:FIGURE ?ev)
+           (?relnLoc ?!locVal (? locType ONT::PHYS-OBJECT ONT::ABSTRACT-OBJECT ONT::PART))
+           ;(ONT::EVAL (symbolmap ?type ?!eventName -rule40_2_AGENT_AFFECTED))
+           -loc4b>
+           40
+           (?!reln0 ?ev ?type ;?!eventName
+            :rule -loc4b
+            ;:AGENT ?!ag
+            ;:AFFECTED ?!obj
+            :LOCMOD1 ?tmp
+            :LOC1 ?!locVal
+	    :RESULT1 -
+            ;:MODALITY ?modVal   ; these are automatically passed on in cwms (but not in DRUM!)
+            ;:FORCE ?fVal
+            ;:DEGREE ?type_degree
+            ;:FREQUENCY ?type_freq
+            :TYPE ?type
+            ;:DRUM ?code
+            )
+           )
+	  
 	  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 	  ;;; (un)able to => can(not)
 	  ;;; need rules for other roles (NEUTRAL, etc)

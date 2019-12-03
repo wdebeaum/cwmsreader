@@ -27,13 +27,13 @@
 )
 ))
 
-(define-words :pos W::v :templ AGENT-THEME-XP-TEMPL
+(define-words :pos W::v :TEMPL AGENT-FORMAL-XP-TEMPL
  :tags (:base500)
  :words (
    (W::pound
    (wordfeats (W::morph (:forms (-vb))))
    (SENSES
-    ((LF-PARENT ONT::pulse)
+    ((LF-PARENT ONT::rhythmic-motion)
      (example "his heart pounds after exercise")
      (TEMPL affected-templ)
      (preference .96) ;; prefer noun sense

@@ -14,7 +14,7 @@ AC_CONFIG_AUX_DIR([../auto])
 AC_CANONICAL_TARGET
 AC_SUBST(TARGET, "$target")
 
-ac_packages='geonames ner postagger parser cj_parser biomodel umls semgroups metamap corenlp mesh_scr enju aspell'
+ac_packages='geonames ner postagger parser cj_parser biomodel umls semgroups metamap corenlp enju aspell'
 
 AC_ARG_WITH(texttagger-prefix,
 	    AC_HELP_STRING([--with-texttagger-prefix],
@@ -54,7 +54,6 @@ ac_umls_search_list=`expand_paths UMLS/2010AB/ UMLS/2009AA/`
 ac_semgroups_search_list=`expand_paths UMLS/SemGroups.txt`
 ac_metamap_search_list=`expand_paths UMLS/MetaMap/public_mm/`
 ac_corenlp_search_list=`expand_versioned_paths stanford-corenlp/stanford-corenlp-full-????-??-??/ stanford-corenlp/stanford-corenlp-????-??-??/`
-ac_mesh_scr_search_list=`expand_paths mesh/c2015.bin.gz`
 ac_enju_search_list=`expand_paths enju/enju-2.4.2/enju`
 ac_aspell_search_list=`which aspell || echo /usr/bin/aspell /usr/local/bin/aspell /opt/local/bin/aspell`
 
@@ -107,11 +106,6 @@ AC_ARG_WITH(corenlp,
 	    AC_HELP_STRING([--with-corenlp],
 			   [locate Stanford CoreNLP dir for TextTagger]))
 AC_SUBST(TEXTTAGGER_corenlp)
-
-AC_ARG_WITH(mesh_scr,
-	    AC_HELP_STRING([--with-mesh-scr],
-			   [locate MeSH SCR file for TextTagger]))
-AC_SUBST(TEXTTAGGER_mesh_scr)
 
 AC_ARG_WITH(enju,
 	    AC_HELP_STRING([--with-enju],
@@ -169,13 +163,18 @@ AC_SUBST(TEXTTAGGER_LDFLAGS)
 AC_PROG_CXX
 AC_LANG(C++)
 
-# Kludgy workaround for DRUM ticket #44: check whether we're using Clang, and
-# if so, tell it to use GCC's libstdc++ instead of its own
+# Kludgy workaround for DRUM ticket #44: check whether we're using Clang<10, and
+# if so, tell it to use GCC's libstdc++ instead of its own; newer Clangs we
+# can't use because they don't let us use libstdc++, and their own libc++ has a
+# bug that affects terms2.cpp
 AC_MSG_CHECKING([for C++ flavor])
-if $CXX --version 2>/dev/null |grep -q clang ; then
-  AC_MSG_RESULT([clang])
+if $CXX --version 2>/dev/null |grep -q 'clang-\d\d\d\.' ; then
+  AC_MSG_RESULT([clang<10])
   TEXTTAGGER_CXXFLAGS='-O3 -stdlib=libstdc++'
   TEXTTAGGER_LDFLAGS='-stdlib=libstdc++'
+elif $CXX --version 2>/dev/null |grep -q 'clang-\d\d\d\d\.' ; then
+  AC_MSG_RESULT([clang>=10])
+  AC_MSG_ERROR([TextTagger cannot use this C++ compiler. Please install and configure GCC instead. The g++ in XCode is actually Clang, and as of version 10 it no longer includes libstdc++, which would force us to use its libc++ instead, which has a bug that affects terms2.cpp. You can easily install GCC on a Mac using MacPorts (sudo port install gcc8) or Homebrew (brew install gcc). Then set CXX to the path to the g++ program from GCC (e.g. for MacPorts you would run configure like this: CXX=/opt/local/bin/g++-mp-8 ./configure).])
 else
   AC_MSG_RESULT([assuming g++])
   TEXTTAGGER_CXXFLAGS='-O3'

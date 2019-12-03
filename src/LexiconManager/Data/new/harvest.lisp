@@ -2,7 +2,7 @@
 ;;;; W::harvest
 ;;;;
 
-(define-words :pos W::v :templ agent-affected-xp-templ
+(define-words :pos W::v :TEMPL AGENT-AFFECTED-XP-NP-TEMPL
  :words (
   (W::harvest
    (SENSES
@@ -19,3 +19,15 @@
    )
 ))
 
+(define-words :pos W::n 
+  :words (
+	  (w::harvest
+	   (senses
+	    (
+	     (LF-PARENT ONT::crop)
+	     (TEMPL COUNT-PRED-TEMPL)
+	     (example "the season's harvest")
+	     )
+	    )
+	   )
+	  ))

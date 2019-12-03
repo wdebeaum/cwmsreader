@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>PDFLearn</title>
+<meta charset="UTF-8">
+<style type="text/css">
+table.ruled, table.ruled tr, table.ruled th, table.ruled td {
+  border: 1px solid black;
+  border-collapse: collapse;
+  padding: 1ex;
+}
+table.ruled th, table.ruled td {
+  vertical-align: top;
+  text-align: left;
+}
+code, code pre {
+  background-color: LightGray;
+}
+var {
+  background-color: SkyBlue;
+}
+table.intervals {
+  border-collapse: collapse;
+}
+.a {
+  background-color: #f77;
+}
+.b {
+  background-color: #77f;
+}
+td.a, td.b {
+  text-align: center;
+}
+.o {
+  background-color: #ccc;
+}
+tr.reln td {
+  border-top: 5px solid white;
+  border-bottom: 0px;
+}
+tr.inv td {
+  border-top: 0px;
+  border-bottom: 5px solid white;
+}
+</style>
+</head>
+<body>
+<h1>PDFLearn</h1>
+William de Beaumont<br>
+$Date: 2019/09/13 17:17:04 $
+
+<h2>Introduction</h2>
+<p>PDFLearn is a TRIPS module that can interact with <a href="../PDFExtractor/README.html">PDFExtractor</a> to learn how to find regions in PDF documents and learn how to edit tables extracted from those regions. It can also drive the Parser/IM to extract semantic information from table cells.</p>
+
+<p>In this document, computer code is displayed like <code>this</code>, and variables like <code><var>this</var></code>. Optional parts are within square brackets <code>[ ]</code>, and alternatives are separated by pipes within curly braces <code>{ | | }</code>.</p>
+
+<h2>Usage</h2>
+
+<h3>Learning to find a region in a PDF document</h3>
+
+<code><pre>
+  (request :content (learn-to-find
+    :target-region <var>region-ID</var>
+    [ :assoc-with "<var>associated-text</var>" ]
+    [ :table-file (file :name "<var>html-table-file-name</var>" :format "text/html") ]
+    ))
+  (reply :content (report :content (answer :rule <var>rule-ID</var>)))
+</pre></code>
+
+<p>The <code>learn-to-find</code> request causes PDFLearn to learn a rule for constructing a target region based on an example identified by <var>region-ID</var> and its nearby paragraph regions and/or ruling lines. It can optionally also use paragraph regions that match the <var>associated-text</var>. And it can optionally use regions that correspond to heading cells in an HTML table file saved by PDFExtractor that corresponds to a table parsed from the target region. All of these regions serve to constrain the positions of the edges of the target region, from the inside or the outside of the target region.</p>
+
+<p>Before replying, PDFLearn will cause PDFExtractor to highlight only the target region and the other regions used in the rule.</p>
+
+<h3>Getting previously-learned region-finding rules that might be relevant to a page</h3>
+
+<code><pre>
+  (request :content (get-relevant-find-rules
+    :page <var>page-ID</var>
+    [ :limit <var>max-result-count</var> ]
+    [ :soft-limit <var>soft-max-result-count</var> ]
+    ))
+  (reply :content (report :content (answer :rules (
+    (<var>rule-ID-1</var> <var>irrelevance-score-1</var>)
+    (<var>rule-ID-2</var> <var>irrelevance-score-2</var>)
+    ...
+    ))))
+</pre></code>
+
+<p>The <code>get-relevant-find-rules</code> request causes PDFLearn to assign a nonnegative score to each of its previously-learned region-finding rules, which is closer to zero the more relevant the rule is to finding something on the page identified by <var>page-ID</var>. You can use <code>:limit</code> and <code>:soft-limit</code> to make it answer with only the few most relevant rules. These work similarly to the same arguments to <a href="../PDFExtractor/README.html">PDFExtractor</a>'s <code>find-related-regions</code> and <code>find-similar-regions</code> requests: the number of results will be at most <var>max-result-count</var>, and any results beyond <var>soft-max-result-count</var> will only be included if their score is equal to the last result within <var>soft-max-result-count</var>.</p>
+
+<h3>Finding a region using a previously-learned rule</h3>
+
+<code><pre>
+  (request :content (find
+    :rule <var>rule-ID</var>
+    :page <var>page-ID</var>
+    [ :assoc-with "<var>associated-text</var>" ]
+    ))
+  (reply :content (report :content (answer :target-region <var>region-ID</var>)))
+</pre></code>
+
+<p>The <code>find</code> request causes PDFLearn to use a rule, previously learned by <code>learn-to-find</code> and identified by <var>rule-ID</var>, on a new page identified by <var>page-ID</var>, in order to construct a new target region identified by <var>region-ID</var> on that page, that corresponds to the target region in the learned example. It can optionally use a new <var>associated-text</var> with the old rule, replacing the one passed to <code>learn-to-find</code>.</p>
+
+<p>If <var>associated-text</var> was given to <code>learn-to-find</code> but not to <code>find</code>, <code>find</code> will use the text given to <code>learn-to-find</code>. If different <var>associated-text</var> was given to each, <code>find</code> will use the one it was given.</p>
+
+<h3>Learning to edit a table</h3>
+
+<p>First, edit the table manually. Then make a request like this:</p>
+
+<code><pre>
+  (request :content (learn-to-edit :table <var>table-ID</var>))
+  (reply :content (report :content (answer :rule <var>rule-ID</var>)))
+</pre></code>
+
+<p>The <code>learn-to-edit</code> request causes PDFLearn to learn a rule for editing a table in the same way as the example table identified by <var>table-ID</var> was edited. PDFLearn will get the edit history of the table from PDFExtractor, and attempt to abstract from it. That abstraction helps the rule to apply to tables that don't necessarily have the same dimensions as the learned example.</p>
+
+<p>Do not mix up region-finding and table-editing rule IDs.</p>
+
+<h3>Editing a table using a previously-learned rule</h3>
+
+<code><pre>
+  (request :content (edit :rule <var>rule-ID</var> :table <var>table-ID</var>))
+  (reply :content (report :content (answer
+    :table <var>table-description</var>
+    :edits <var>edits</var>
+    )))
+</pre></code>
+
+<p>The <code>edit</code> request causes PDFLearn to use a rule, previously learned by <code>learn-to-edit</code> and identified by <var>rule-ID</var>, on a new table identified by <var>table-ID</var>, in order to edit the new table in the same way as the learned example table. It instructs PDFExtractor to do the edits, and then replies with a description of the table in its final state, and a list of the concrete <var>edits</var> that were performed on it. This reply is similar to the replies to the <code>auto-<var>*</var></code> requests to PDFExtractor.</p>
+
+<h3>Extracting semantic information from table cells</h3>
+
+<code><pre>
+  (request :content (extract-table-cells
+    :file (file :name "<var>html-table-file-name</var>" :format "text/html")
+    ))
+  ;; eventually, from IM, for each cell in the table:
+  (tell :content (extraction-result ...))
+</pre></code>
+
+<p>The <code>extract-table-cells</code> request causes PDFLearn to send the text of each heading in an HTML table file saved by PDFExtractor through the Parser, use the LFs from the Parser to construct a new LF for each data cell in the table, and send those LFs through IM in order to cause it to produce <code>extraction-result</code> messages. See also its predecessor, <a href="../TableHack/">TableHack</a>.</p>
+
+
+<h2>Examples</h2>
+
+<h3>Finding and editing tables</h3>
+
+<p>This is an extended example of learning to find and edit similar tables in different documents. It uses the PDF files Lucian put up on Google Docs concerning migration from South Sudan to Ethiopia, extracting the table (really a horizontal bar chart, but it works as a table with some edits) of new arrivals on the first page of each document. I have these files in <code>/Users/wbeaumont/cwms/reading/google-docs-Migration_2019/ET/</code>.</p>
+
+<code><pre>
+;; system opens the first file in PDFExtractor
+(request :receiver pdfextractor :content (display
+  :file (file :name "/Users/wbeaumont/cwms/reading/google-docs-Migration_2019/ET/52192.pdf")))
+;; PDFExtractor reports that a window opened and the first page of the document
+;; was displayed in it
+(tell :sender PDFEXTRACTOR :content (report :content
+  (opened :what pdfextractor-win-0 :who sys)))
+(tell :sender PDFEXTRACTOR :content (report :content
+  (displayed
+    :what (page :id page2 :document document1 :index 0
+		:bounds (rectangle :x 0.0 :y 0.0 :w 595.32 :h 841.92))
+    :where pdfextractor-win-0)))
+;; user selects the region containing the table on that page
+(tell :sender PDFEXTRACTOR :content (report :content
+  (selected :what
+    (rectangle
+      :id region4
+      :page (page :id page2 :document document1 :index 0)
+      :x 220.0 :y 458.0 :w 325.0 :h 112.0))))
+;; user parses and displays the table by clicking the "parse table" button
+(tell :sender PDFEXTRACTOR :content (report :content
+  (opened :what pdfextractor-win-1 :who sys)))
+(tell :sender PDFEXTRACTOR :content (report :content
+  (displayed :what table5 :where pdfextractor-win-1)))
+;; user edits the table manually (omitting "selected" reports here for brevity)
+(tell :sender PDFEXTRACTOR :content (report :content (edited-table :table table5 :edit
+  (merge-rows :first 0 :last 2))))
+(tell :sender PDFEXTRACTOR :content (report :content (edited-table :table table5 :edit
+  (merge-columns :first 1 :last 3))))
+(tell :sender PDFEXTRACTOR :content (report :content (edited-table :table table5 :edit
+  (edit-cells :first-row 0 :first-column 0 :last-row 3 :last-column 0 :annotations "" :type row-heading))))
+;; system saves the edited table to an HTML file
+(request :receiver pdfextractor :content (save-table
+  :table table5
+  :file (file :name "/Users/wbeaumont/cwms/table5.html" :format "text/html")))
+(reply :sender PDFEXTRACTOR :content (report :content (answer
+  :file (file :name "/Users/wbeaumont/cwms/table5.html" :format "text/html"))))
+
+;; *** Here is where PDFLearn comes in! ***
+
+;; system learns to find the region containing the table, using information
+;; from the HTML file (in particular, the heading cells), and the fact that the
+;; table is associated with "new arrivals"
+(request :receiver pdflearn :content (learn-to-find
+  :target-region region4
+  :table-file (file :name "/Users/wbeaumont/cwms/table5.html" :format "text/html")
+  :assoc-with "new arrivals"))
+(REPLY :sender PDFLEARN :RECEIVER WILL :CONTENT (REPORT :CONTENT (ANSWER :RULE RULE37014)))
+;; system also learns how to edit the table
+(request :receiver pdflearn :content (learn-to-edit :table table5))
+(REPLY :sender PDFLEARN :CONTENT (REPORT :CONTENT (ANSWER :RULE RULE37107)))
+
+;; system opens the second file
+(request :receiver pdfextractor :content (display
+  :file (file :name "/Users/wbeaumont/cwms/reading/google-docs-Migration_2019/ET/52193.pdf")))
+(tell :sender PDFEXTRACTOR :content (report :content
+  (opened :what pdfextractor-win-2 :who sys)))
+(tell :sender PDFEXTRACTOR :content (report :content
+  (displayed
+    :what (page :id page185 :document document184 :index 0
+		:bounds (rectangle :x 0.0 :y 0.0 :w 595.32 :h 841.92))
+    :where pdfextractor-win-2)))
+;; system applies the table-region-finding rule it learned from the first file
+(request :receiver pdflearn :content (find :rule RULE37014 :page page185))
+;; PDFLearn updates the display (with messages to PDFExtractor not shown here
+;; for brevity) and replies with the found region
+(REPLY :sender PDFLEARN :CONTENT (REPORT :CONTENT (ANSWER :TARGET-REGION REGION370)))
+;; system parses and displays the table (the display is not strictly necessary)
+(request :receiver pdfextractor :content (parse-table :region REGION370))
+(reply :sender PDFEXTRACTOR :content (report :content (answer :table
+  (table
+    :id table372
+    :data (
+      ("" "" "")
+      ("Relocated to Jewi, Tierkidi, Kule &amp;" "" "37,782")
+      ("Nyguenyiel" "" "")
+      ("Awaiting Relocation (Registered L1)" "549" "")
+      ("Awaiting Registration (wrist-banded)" "0" "")
+      ("" "" "")
+      ("Total New Arrivals" "" "38,331")
+      )
+    :rulings (
+      (vertical :column 1 :first-row 1 :last-row 3)
+      (vertical :column 1 :first-row 5 :last-row 6)
+      )
+    )
+  )))
+(request :receiver pdfextractor :content (display-table :table table372))
+(tell :sender PDFEXTRACTOR :content (report :content (opened :what pdfextractor-win-3 :who sys)))
+(tell :sender PDFEXTRACTOR :content (report :content
+  (displayed :what table372 :where pdfextractor-win-3)))
+;; system applies the table-editing rule it learned from the first table
+(request :receiver pdflearn :content (edit :rule RULE37107 :table table372))
+(REPLY :sender PDFLEARN :CONTENT (REPORT :CONTENT (ANSWER
+  :TABLE (TABLE
+    :ID TABLE372
+    :DATA (
+      ("
+Relocated to Jewi, Tierkidi, Kule &amp; 
+Nyguenyiel" "
+37,782")
+      ("Awaiting Relocation (Registered L1)" "549")
+      ("Awaiting Registration (wrist-banded)" "0")
+      ("" "")
+      ("Total New Arrivals" " 38,331")
+      )
+    :RULINGS (
+      (VERTICAL :COLUMN 1 :FIRST-ROW 0 :LAST-ROW 1)
+      (VERTICAL :COLUMN 1 :FIRST-ROW 3 :LAST-ROW 4)
+      )
+    )
+  :EDITS (
+    (MERGE-ROWS :FIRST 0 :LAST 2)
+    (MERGE-COLUMNS :FIRST 1 :LAST 2)
+    (EDIT-CELLS :FIRST-ROW 0 :FIRST-COLUMN 0 :LAST-ROW 4 :LAST-COLUMN 0 :ANNOTATIONS "" :TYPE ROW-HEADING)
+    )
+  )))
+;; system saves the table
+(request :receiver pdfextractor :content (save-table
+  :table table372
+  :file (file :name "/Users/wbeaumont/cwms/table372.html" :format "text/html")))
+(reply :sender PDFEXTRACTOR :content (report :content (answer
+  :file (file :name "/Users/wbeaumont/cwms/table372.html" :format "text/html"))))
+
+;; same routine for the third file
+(request :receiver pdfextractor :content (display
+  :file (file :name "/Users/wbeaumont/cwms/reading/google-docs-Migration_2019/ET/54660.pdf")))
+(tell :sender PDFEXTRACTOR :content (report :content
+  (opened :what pdfextractor-win-4 :who sys)))
+(tell :sender PDFEXTRACTOR :content (report :content
+  (displayed
+    :what (page :id page374 :document document373 :index 0
+		:bounds (rectangle :x 0.0 :y 0.0 :w 595.32 :h 841.92))
+    :where pdfextractor-win-4)))
+(request :receiver pdflearn :content (find :rule RULE37014 :page page374))
+(REPLY :sender PDFLEARN :CONTENT (REPORT :CONTENT (ANSWER :TARGET-REGION REGION560)))
+(request :receiver pdfextractor :content (parse-table :region REGION560))
+(reply :sender PDFEXTRACTOR :content (report :content (answer :table
+  (table
+    :id table562
+    :data (
+      ("Relocated to Jewi, Tierkidi, Kule &amp;" "" "")
+      ("" "" "68,666")
+      ("Nyguenyiel" "" "")
+      ("Awaiting Relocation (Registered L1)" "192" "")
+      ("Awaiting Registration (wrist-banded)" "0" "")
+      ("Total New Arrivals" "" "68,858")
+      )
+    :rulings (
+      (vertical :column 1 :first-row 0 :last-row 3)
+      )
+    )
+  )))
+(request :receiver pdfextractor :content (display-table :table table562))
+(tell :sender PDFEXTRACTOR :content (report :content
+  (opened :what pdfextractor-win-5 :who sys)))
+(tell :sender PDFEXTRACTOR :content (report :content
+  (displayed :what table562 :where pdfextractor-win-5)))
+(request :receiver pdflearn :content (edit :rule RULE37107 :table table562))
+(TELL :sender PDFLEARN :CONTENT (REPORT :CONTENT (ANSWER
+  :TABLE (TABLE
+    :ID TABLE562
+    :DATA (
+      ("Relocated to Jewi, Tierkidi, Kule &amp;
+
+Nyguenyiel" "
+68,666")
+      ("Awaiting Relocation (Registered L1)" "192")
+      ("Awaiting Registration (wrist-banded)" "0")
+      ("Total New Arrivals" " 68,858")
+      )
+    :RULINGS (
+      (VERTICAL :COLUMN 1 :FIRST-ROW 0 :LAST-ROW 1)
+      )
+    )
+  :EDITS (
+    (MERGE-ROWS :FIRST 0 :LAST 2)
+    (MERGE-COLUMNS :FIRST 1 :LAST 2)
+    (EDIT-CELLS :FIRST-ROW 0 :FIRST-COLUMN 0 :LAST-ROW 3 :LAST-COLUMN 0 :ANNOTATIONS "" :TYPE ROW-HEADING)
+    )
+  )))
+(request :receiver pdfextractor :content (save-table
+  :table table562
+  :file (file :name "/Users/wbeaumont/cwms/table562.html" :format "text/html")))
+(reply :sender PDFEXTRACTOR :content (report :content (answer :file
+  (file :name "/Users/wbeaumont/cwms/table562.html" :format "text/html"))))
+</pre></code>
+
+<h3>Extracting semantic information from table cells</h3>
+
+<p>This is an example of generating semantic extractions from the cells of a saved HTML table using the <code>extract-table-cells</code> request. The process of making the HTML table with PDFExtractor is shown first for context. The extraction should be done in the cwmsreader system (i.e. <code><var>$TRIPS_BASE</var>/bin/trips-cwms -reader</code>).</p>
+
+<code><pre>
+;; open a PDF file with a table in it
+(request :receiver pdfextractor :content (display
+  :file (file :name "/Users/wbeaumont/cwms/reading/55428.pdf")))
+(tell :sender PDFEXTRACTOR :content (report :content
+  (opened :what pdfextractor-win-0 :who sys)))
+(tell :sender PDFEXTRACTOR :content (report :content
+  (displayed
+    :what (page :id page2 :document document1 :index 0
+		:bounds (rectangle :x 0.0 :y 0.0 :w 595.32 :h 841.92))
+    :where pdfextractor-win-0)))
+;; user selects the table (auto-detection doesn't quite work for this one)
+(tell :sender PDFEXTRACTOR :content (report :content
+  (selected :what
+    (rectangle
+      :id region9
+      :page (page :id page2 :document document1 :index 0)
+      :x 194.0 :y 545.0 :w 374.0 :h 160.0))))
+;; user parses the table
+(tell :sender PDFEXTRACTOR :content (report :content
+  (opened :what pdfextractor-win-1 :who sys)))
+(tell :sender PDFEXTRACTOR :content (report :content
+  (displayed :what table10 :where pdfextractor-win-1)))
+;; user edits the table to mark headings (this is important; the extraction step needs the headings marked properly)
+(tell :sender PDFEXTRACTOR :content (report :content
+  (edited-table :table table10 :edit
+    (edit-cells :first-row 0 :first-column 1 :last-row 0 :last-column 2 :annotations "" :type column-heading))))
+(tell :sender PDFEXTRACTOR :content (report :content
+  (edited-table :table table10 :edit
+    (edit-cells :first-row 1 :first-column 0 :last-row 7 :last-column 0 :annotations "" :type row-heading))))
+;; user saves the table
+(tell :sender PDFEXTRACTOR :content (report :content
+  (saved :what table10 :where (file :name "/Users/wbeaumont/cwms/reading/table10.html" :format "text/html"))))
+
+;; *** Here is where PDFLearn comes in! ***
+
+;; extract semantic information from table cells in the saved table
+(request :receiver pdflearn :content (extract-table-cells
+  :file (file :name "/Users/wbeaumont/cwms/reading/table10.html" :format "text/html")))
+;; ...eventually, you will see several messages like this:
+(tell :sender IM (extraction-result :value ... :channel cell)
+</pre></code>
+
+</body>
+</html>

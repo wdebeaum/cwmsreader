@@ -267,6 +267,7 @@
    )
 ))
 
+#|
 (define-words 
     :pos W::adv :templ DISC-PRE-TEMPL
  :words (
@@ -277,6 +278,28 @@
      )
     ((LF-PARENT ONT::ADDITIVE)
      (TEMPL binary-constraint-s-ing-templ)
+     )
+    )
+   )
+))
+|#
+
+(define-words
+    :pos W::adv :templ DISC-PRE-TEMPL
+ :words ( 
+  ((W::in W::addition)
+   (SENSES
+   ; ((LF-PARENT ONT::ADDITIVE)
+   ;  (TEMPL pred-vp-templ)
+   ;  )
+    ((LF-PARENT ONT::ADDITIVE)
+     (TEMPL disc-templ)
+     )
+
+    ((LF-PARENT ONT::ADDITIVE)
+     (TEMPL binary-constraint-S-templ (xp (% W::PP (W::ptype W::to))))
+     (SYNTAX (W::ALLOW-DELETED-COMP +)
+    )
      )
     )
    )
@@ -297,23 +320,6 @@
      )
     )
    )
-))
-
-(define-words 
-    :pos W::adv :templ pred-s-post-templ
- :tags (:base500)
- :words (
-;; Added by myrosia for Bee corpus
-	    (w::in
-	     (senses
-	      ((lf-parent ont::manner)
-	       (meta-data :origin bee :entry-date 20040407 :change-date 20080417 :comments (test-s36 test-s37)) 
-	       (example "in general" "in particular" "in short" "in series" "in parallel" "in full" "in earnest" "the room is done in green")
-	       ;; a restriction of ADJP with no argument
-	       (templ binary-constraint-S-templ (xp (% w::ADJP (w::var ?var) (w::sem ?sem) (w::set-modifier -))))
-	       (preference 0.9)
-	       )
-	      ))
 ))
 
 (define-words :pos W::ADV
@@ -346,15 +352,27 @@
 	     (meta-data :origin calo :entry-date 20050216 :change-date nil :comments caloy2)
 	     (example "is it due in part to drought")
 	     )
-	    )
 	   )
-	  )
+
+	  ))
+
+
+(define-words :pos W::adj :templ CENTRAL-ADJ-TEMPL
+	      :words (
+
+		      ((w::in w::common w::with)
+		       (SENSES
+			((LF-PARENT ONT::SIMILAR)
+			 (templ adj-co-theme-templ (xp (% w::np))))
+			)
+		       )
+		      ))
 
 (define-words :pos W::ADV
  :words (
    ((w::in W::back)
    (SENSES
-    ((LF-PARENT ONT::back)
+    ((LF-PARENT ONT::back-of)
      (TEMPL BINARY-CONSTRAINT-S-OR-NP-TEMPL  (xp (% w::pp (w::ptype (? pt w::of)))))
       (SYNTAX (W::ALLOW-DELETED-COMP +))
      (EXAMPLE "there is a crater in back of me")
@@ -445,7 +463,7 @@
      (preference .98)
      )||#
      ;;;;;need specific constraints that we're lacking now
-    (;(LF-PARENT ONT::TIME-span-rel)
+     (
      (LF-PARENT ONT::TIME-IN-REL)
      (TEMPL BINARY-CONSTRAINT-S-OR-NP-TEMPL)
      (example "he ran the race in June" "in the middle of the night")
@@ -471,12 +489,42 @@
      (preference 0.95) ;; don't choose if other options are available
      )||#	      
     ((LF-PARENT ONT::direction-in)
-     (TEMPL PRED-S-POST-TEMPL)
+     ;(TEMPL PRED-S-POST-TEMPL)
+     (TEMPL PREDICATIVE-ONLY-ADJ-TEMPL)
+     ;;(TEMPL PRED-NP-TEMPL)
      (preference 0.98)
      )
-    ;; in the air (excluded by ont::spatial-loc)
+
+    ((LF-PARENT ONT::direction-in)
+     ;(TEMPL PRED-S-POST-TEMPL)
+     (TEMPL PARTICLE-TEMPL)
+     ;;(TEMPL PRED-NP-TEMPL)
+     (preference 0.98)
      )
-    )
+    
+    ;; Added by myrosia for Bee corpus
+    ((lf-parent ont::manner)
+     (meta-data :origin bee :entry-date 20040407 :change-date 20080417 :comments (test-s36 test-s37)) 
+     (example "in general" "in particular" "in short" "in series" "in parallel" "in full" "in earnest" "the room is done in green")
+     ;; a restriction of ADJP with no argument
+     (templ binary-constraint-S-templ (xp (% w::ADJP (w::var ?var) (w::sem ?sem) (w::set-modifier -))))
+     (preference 0.9)
+     )
+
+    ((lf-parent ont::purpose)
+     (example "in reply")
+     (templ binary-constraint-S-templ)
+     (preference 0.98) ; prefer in-loc
+     )
+    
+    ;; in the air (excluded by ont::spatial-loc)
+    ;; It increased in temperature
+    ((LF-PARENT ONT::in-scale)
+     (TEMPL BINARY-CONSTRAINT-S-OR-NP-TEMPL)
+     ;(preference 0.98)
+     )
+     )
+   )
   ))
 
 (define-words :pos W::adj :templ CENTRAL-ADJ-TEMPL

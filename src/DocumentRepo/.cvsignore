@@ -1,0 +1,5 @@
+.*.swp
+old*
+repo.db
+DocumentRepo
+MANIFEST.MF

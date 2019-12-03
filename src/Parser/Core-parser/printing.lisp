@@ -3,7 +3,7 @@
 ;;;
 ;;; Author:  James Allen <james@cs.rochester.edu>
 ;;;
-;;; Time-stamp: <Thu Jun 28 17:19:29 EDT 2018 james>
+;;; Time-stamp: <Thu Jul 11 16:16:59 EDT 2019 james>
 
 (in-package "PARSER")
 
@@ -510,7 +510,7 @@ usually not be 0 for speech. Also it finds one path quickly in order to set the 
   (when term
     (if (consp term) 
       (if (eq (car term) 'term)
-	  (add-lex-if-necessary (or (add-positional-info (find-arg-in-act term :lf) term) term) term)
+	  (add-orig-lex-if-necessary (add-lex-if-necessary (or (add-positional-info (find-arg-in-act term :lf) term) term) term) term)
 	  (mapcar #'extract-lf-from-term term))
       term)))
 
@@ -521,12 +521,21 @@ usually not be 0 for speech. Also it finds one path quickly in order to set the 
 	      (list :start (find-arg-in-act term :start) :end (find-arg-in-act term :end)))))
 
 (defvar *add-lex-to-lf* nil)
+(defvar *add-orig-lex-to-lf* nil)
 
 (defun add-lex-if-necessary (lf term)
   (if (and *add-lex-to-lf* (consp term))
       (let ((lex (find-arg-in-act term :lex)))
 	(if lex
 	    (append lf (list :lex lex))
+	    lf))
+      lf))
+
+(defun add-orig-lex-if-necessary (lf term)
+  (if (and *add-orig-lex-to-lf* (consp term))
+      (let ((orig-lex (find-arg-in-act term :orig-lex)))
+	(if orig-lex
+	    (append lf (list :orig-lex orig-lex))
 	    lf))
       lf))
 
@@ -1189,6 +1198,7 @@ usually not be 0 for speech. Also it finds one path quickly in order to set the 
 	 (sem (get-fvalue desc 'w::sem))
          (input (get-fvalue desc 'w::input)) 
          (lex (get-fvalue desc 'w::lex))
+	 (orig-lex (get-fvalue desc 'w::orig-lex))
 	 (var (convert-to-package (get-fvalue desc 'w::var) *ont-package*))
 	 (start (get-fvalue desc 'W::start))
 	 (end (get-fvalue desc 'w::end))
@@ -1209,7 +1219,7 @@ usually not be 0 for speech. Also it finds one path quickly in order to set the 
       ;; add a proform feature for the pro unless it is already there
       (setq constraint-list (if (not (get-fvalue (third constraint-list) 'w::proform))
 ;				(insert-into-& (list :proform (or input (list lex))) constraint-list)
-				(insert-into-& (list :proform (or input lex)) constraint-list)
+				(insert-into-& (list :proform (or lex input)) constraint-list)
 				constraint-list))))
     (let* ((newlf (list* (build-spec status)
 			 var
@@ -1220,7 +1230,12 @@ usually not be 0 for speech. Also it finds one path quickly in order to set the 
       (if (or (null form) (member 'w::var form))(setq term (append term (list :VAR var))))
       (if (or (null form) (member 'w::sem form)) (setq term (append term (list :SEM sem))))
       (if (and *add-lex-to-lf* lex)
-	  (setq term (replace-arg-in-act term :lf (append newlf (list :LEX lex)))))
+	  (progn 
+	    (setq term (replace-arg-in-act term :lf (append newlf (list :LEX lex))))
+	    (setq newlf (append newlf (list :LEX lex)))
+	    ))
+      (if (and *add-orig-lex-to-lf* orig-lex)
+	  (setq term (replace-arg-in-act term :lf (append newlf (list :ORIG-LEX orig-lex)))))
       (if (and input (or (null form) (member 'w::input form)))
 	  (setq term (append term (list :INPUT input)))
         )
@@ -1269,19 +1284,20 @@ usually not be 0 for speech. Also it finds one path quickly in order to set the 
   (cond
    ((isvar expr)
     (let* ((vnam (second expr))
-       (val (third expr))
-       (negated (fourth expr));;(eql (char (symbol-name vname) 0) #\!))
+	   (val (third expr))
+	   (negated (or (fourth expr) (and (symbolp vnam) (eql (char (symbol-name vnam) 0) #\!))))
        )
-      (if (listp val)
-      (let ((reduced-val (remove-if #'null val)))
-        (if (eql (list-length reduced-val) 0)
-        nil
-        (if (eql (list-length reduced-val) 1)
-            (car reduced-val)
-	    (if (eq (car reduced-val) '$)
-            (mapcar #'clean-out-vars reduced-val)
-            (car val)))))
-      val)))
+      (when (not negated)
+	(if (listp val)
+	  (let ((reduced-val (remove-if #'null val)))
+	    (if (eql (list-length reduced-val) 0)
+		nil
+		(if (eql (list-length reduced-val) 1)
+		    (car reduced-val)
+		    (if (eq (car reduced-val) '$)
+			(mapcar #'clean-out-vars reduced-val)
+			(car val)))))
+	  val))))
    ((consp expr)
     (if (eq (car expr) 'w::sem)
 	(if (consp (cadr expr))
@@ -1511,7 +1527,7 @@ usually not be 0 for speech. Also it finds one path quickly in order to set the 
 
 (defun convert-to-ont-if-in-parser-package (val)
   (cond ((symbolp val)
-	 (if (eq (symbol-package val) *parser-package*)
+	 (if (member (symbol-package val) (list *parser-package* *f-package*))
 	     (build-value (util::convert-to-package val *ont-package*))
 	   val))
 	((numberp val)
@@ -1563,6 +1579,7 @@ usually not be 0 for speech. Also it finds one path quickly in order to set the 
          (constraints (get-fvalue args 'w::constraint))
          (tma (get-fvalue args 'w::tma))
 	 (lex (get-fvalue args 'W::lex))
+	 (orig-lex (get-fvalue args 'w::orig-lex))
          (roles (build-roles-for-lf var constraints))
          (input (get-fvalue args 'w::input))
 	 (start (get-fvalue args 'W::start))
@@ -1580,7 +1597,12 @@ usually not be 0 for speech. Also it finds one path quickly in order to set the 
     (if (or (null form) (member 'w::var form)) (setq term (append term (list :VAR var))))
     (if (or (null form) (member 'w::sem form)) (setq term (append term (list :SEM (get-fvalue args 'w::sem) ))))
     (if (and *add-lex-to-lf* lex)
-	(setq term (replace-arg-in-act term :lf (append new-lf (list :LEX lex)))))
+	(progn
+	  (setq term (replace-arg-in-act term :lf (append new-lf (list :LEX lex))))
+	  (setq new-lf (append new-lf (list :LEX lex)))
+	  ))
+    (if (and *add-orig-lex-to-lf* orig-lex)
+	(setq term (replace-arg-in-act term :lf (append new-lf (list :ORIG-LEX orig-lex)))))
     (if (or (null form) (and (member 'w::input form) input))
       (setq term (append term (list :INPUT input)))
         )
@@ -1755,6 +1777,7 @@ usually not be 0 for speech. Also it finds one path quickly in order to set the 
   )
 
 (defvar *parser-package* (find-package "PARSER"))
+(defvar *f-package* (find-package "F"))
 
 (defun show-tree (&optional feats)
   (show-t1 (list (car (get-answers))) feats))
@@ -1825,7 +1848,7 @@ usually not be 0 for speech. Also it finds one path quickly in order to set the 
       ;; add a proform feature for the pro unless it is already there
       (setq constraint-list (if (not (get-fvalue (third constraint-list) 'w::proform))
 ;				(insert-into-& (list :proform (or input (list lex))) constraint-list)
-				(insert-into-& (list :proform (or input lex)) constraint-list)
+				(insert-into-& (list :proform (or lex input)) constraint-list)
 			      constraint-list))))
     (list* (build-spec status)
 	   var
@@ -1886,7 +1909,7 @@ usually not be 0 for speech. Also it finds one path quickly in order to set the 
 (defun refine-abstract-roles (roles type-maps lf-type existing-roles)
   (when roles
     (case (car roles) 
-      ((:mod :result)
+      ((:mod :mod1 :mod2 :mod3 :mod4 :result :result1 :result2)
 	(let* 
 	    ((arg (cadr roles))
 	     (argtype (get-type-0 (cadr (assoc arg type-maps)))))
@@ -1923,7 +1946,8 @@ usually not be 0 for speech. Also it finds one path quickly in order to set the 
 
 (defun map-role (map-info lf-type arg-type old-role-name)
   (if (and (om::subtype lf-type (caar map-info))
-	   (eq (cadar map-info) old-role-name)
+	   ;(eq (cadar map-info) old-role-name)
+	   (member old-role-name (cadar map-info))
 	   )
       (let ((new-role-names (find-if #'(lambda (x)
 				     (if (consp (car x))
@@ -1958,59 +1982,60 @@ usually not be 0 for speech. Also it finds one path quickly in order to set the 
 						
 (setq *role-mapping-table*
       '(
-	((ont::situation-root :mod)
+	((ont::situation-root (:mod :mod1 :mod2 :mod3 :mod4))
 	 ((ont::at-loc) :location))  ;; at-loc is always location
-	((ont::send :mod)
+	((ont::send (:mod :mod1 :mod2 :mod3 :mod4))
 	 ((ont::to-loc ont::goal-reln  ont::direction-reln) :RESULT)
 	 ((ont::position-reln) :location))
-	((ont::motion :mod)
+	((ont::motion (:mod :mod1 :mod2 :mod3 :mod4))
 	 ((ont::pos-as-containment-reln) :location)
+	 ;((ont::direction) :manner) ; e.g., forward 
 	 ((ont::to-loc ont::position-reln ont::goal-reln ont::direction-reln) :result)
 	 ((ont::source-reln) :source))	
-	((ont::motion :result)
+	((ont::motion (:result :result1 :result2))
 	 ((ont::obj-in-path ont::trajectory) :transient-result)
 	 )
-	((ont::put :mod)
+	((ont::put (:mod :mod1 :mod2 :mod3 :mod4))
 	 ((ont::to-loc ont::position-reln ont::goal-reln  ont::direction-reln) :result)
 	 ((ont::source-reln) :source)
 	 )
-	((ont::apply-force :mod)
+	((ont::apply-force (:mod :mod1 :mod2 :mod3 :mod4))
 	 ((ont::to-loc ont::position-reln ont::goal-reln  ont::direction-reln) :result)
 	 ((ont::source-reln) :source))	
-	((ont::apply-force :result)
+	((ont::apply-force (:result :result1 :result2))
 	 ((ont::obj-in-path ont::trajectory) :transient-result)
 	 )
-	((ont::giving :mod)
+	((ont::giving (:mod :mod1 :mod2 :mod3 :mod4))
 	 ((ont::to-loc) :result)
 	 ((ont::source-reln) :source)
 	 )
-	((ont::acquire :mod)
+	((ont::acquire (:mod :mod1 :mod2 :mod3 :mod4))
 	  ((ont::to-loc ont::position-reln ont::goal-reln  ont::direction-reln) :result)
 	 ((ont::source-reln) :source))
-	((ont::acquire :result)
+	((ont::acquire (:result :result1 :result2))
 	 ((ont::obj-in-path ont::trajectory) :transient-result)
 	 )
-	((ont::joining :mod)
+	((ont::joining (:mod :mod1 :mod2 :mod3 :mod4))
 	  ((ont::goal-reln) :result)  ; into
 	 ((ont::source-reln) :source)
 	 )
-	((ont::change :mod)
+	((ont::change (:mod :mod1 :mod2 :mod3 :mod4))
 	  ((ont::to-loc ont::goal-reln ont::direction-reln ont::resulting-object) :result) ; resulting-state is in goal-reln
 	  ((ont::source-reln) :source))
-	((ont::phys-object :mod)
+	((ont::phys-object (:mod :mod1 :mod2 :mod3 :mod4))
 	 ((ont::position-reln ) :location)
 	 ((ont::temporal-location) :time)
 	 ((ont::source-reln) :source)
 	 )
 	 ;;((ont::assoc-with) :assoc-with))
-	((ont::abstract-object :mod)
+	((ont::abstract-object (:mod :mod1 :mod2 :mod3 :mod4))
 	 ((ont::position-reln) :location)
 	 ((ont::temporal-location) :time) ; prices in 2016
 	 ;; ((ont::assoc-with) :assoc-with)
 	 ((ont::degree-modifier) :degree)
 	 ((ont::source-reln) :source)
 	 )
-	((ont::situation-root :mod)
+	((ont::situation-root (:mod :mod1 :mod2 :mod3 :mod4))
 	 ((ont::goal-reln) :result)
 	 ((ont::reason ont::purpose) :reason)
 	 ((ont::extent-predicate) :extent)
@@ -2030,10 +2055,12 @@ usually not be 0 for speech. Also it finds one path quickly in order to set the 
 	 ((ont::beneficiary) :beneficiary)
 	 ((ont::source-reln) :source)
 	 (;(ont::manner ont::abstract-object-property ont::pivot) :manner)
-	  (ont::manner ont::property-val) :manner)
+	  ;(ont::manner ont::property-val) :manner)
+	  (ont::manner ont::process-val) :manner) ; e.g., quickly
 	 ((ont::likelihood ont::qualification) :qualification)
+	 ((ont::in-scale) :scale)
 	 )
-	((ont::referential-sem :mod)  ; agentnom and missing head
+	((ont::referential-sem (:mod :mod1 :mod2 :mod3 :mod4))  ; agentnom and missing head
 	 ((ont::position-reln ) :location)
 	 ((ont::temporal-location) :time)
 	 ((ont::source-reln) :source)

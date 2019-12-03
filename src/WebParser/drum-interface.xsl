@@ -35,7 +35,7 @@
      </xsl:if>
     </xsl:variable>
     <xsl:choose>
-     <xsl:when test="@service = 'DRUM-DEV'">
+     <xsl:when test="@service = 'DRUM-DEV' or @service = 'DRUM-ER'">
       <p>(This is the nightly-updated version of the DRUM web service; see also the <a href="drum{$query}">stable 2017 version</a>.)</p>
      </xsl:when>
      <xsl:otherwise>
@@ -63,6 +63,7 @@
 	 <textarea name="input-terms" id="input-terms" placeholder="Enter a Lispy list of native tags without :start/:end."><xsl:value-of select="@input-terms" /></textarea></label>
      </div>
     </form>
+    <xsl:call-template name="hyps-form" />
     <xsl:apply-templates />
     <xsl:call-template name="footer" />
    </body>

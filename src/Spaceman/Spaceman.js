@@ -10,6 +10,12 @@ const KQML = require('KQML/kqml.js');
 const CWCModule = require('util/cwc/cwc-module.js');
 const errors = require('util/cwc/errors.js');
 const SetOps = require('set-ops.js');
+const utils = require('utils.js');
+const fileKQML = utils.fileKQML;
+const codeKQML = utils.codeKQML;
+const nconc = utils.nconc;
+const makeOrGetFile = utils.makeOrGetFile;
+const getEquirectangularMap = require('maps.js').getEquirectangularMap;
 
 const installDir = process.env.TRIPS_BASE + '/etc/Spaceman';
 const cacheDirParent = `${installDir}/cache/`;
@@ -59,79 +65,6 @@ const impactMergers = [
 ];
 // TODO? also use Table C.4 Standard IMPACT regional aggregations (names in note at bottom of table instead of in table)
 
-// the kinds of response to get-geographic-region (first two in
-// reply-report-answer-:location, the rest are failures):
-
-function fileKQML(name, format) {
-  return { 0: 'file', name: `"${name}"`, format: format };
-}
-
-function codeKQML(code, standard) {
-  return { 0: 'code', code: code.toUpperCase(), standard: `"${standard}"` };
-}
-
-// other useful functions
-
-/* modify the array dst by adding all elements of src to the end */
-function nconc(dst, src) {
-  for (var i = 0, j = dst.length; i < src.length; i++, j++) {
-    dst[j] = src[i];
-  }
-  return dst;
-}
-
-/* If a file named name exists, just call the callback with fileKQML; if not,
- * run the program with the given args in order to make the file first.
- */
-function makeOrGetFile(name, format, callback, program, ...args) {
-  fs.access(name, fs.constants.F_OK, (err)=>{
-    if (err) { // does not exist yet, call program
-      console.log('making ' + name);
-      console.log([program, ...args].join(' '));
-      child_process.execFile(program, args, (error, stdout, stderr) => {
-	if (error) {
-	  callback(errors.programError(error.message + 'stderr output: ' + stderr));
-	} else {
-	  fs.access(name, fs.constants.F_OK, (err2)=>{
-	    if (err2) {
-	      callback(errors.programError(`${program} succeeded, but did not create its output file.\nstderr output: ${stderr}`));
-	    } else {
-	      callback(fileKQML(name, format));
-	    }
-	  });
-	}
-      });
-    } else { // exists already, just call callback
-      callback(fileKQML(name, format));
-    }
-  });
-}
-
-/* Are GeoJSON linear ring coordinate lists a and b equivalent? */
-/* unused
-function ringsEqual(a, b) {
-  if (a.length != b.length) { return false; }
-  // decrement length because GeoJSON linear rings repeat the first point as
-  // the last point, and we need to ignore that when rotating
-  var len = a.length - 1;
-  // try to find the rotation of b that makes it the same as a elementwise
-  for (var r = 0; r < len; r++) { // rotation of b relative to a
-    var found = true;
-    for (var i = 0; i < len; i++) { // a index
-      var ae = a[i];
-      var be = b[(i + r) % len];
-      if (!(ae[0] == be[0] && ae[1] == be[1])) {
-	found = false;
-	break; // next rotation
-      }
-    }
-    if (found) {
-      return true;
-    }
-  }
-  return false;
-}*/
-
 function Spaceman(argv, oninit) {
   CWCModule.call(this, argv);
   this.name = 'Spaceman';
@@ -150,6 +83,8 @@ util.inherits(Spaceman, CWCModule);
     CWCModule.prototype.addHandlers.call(this);
     this.addHandler(KQML.parse('(request &key :content (get-geographic-region . *))'),
     		    this.handleGet);
+    this.addHandler(KQML.parse('(request &key :content (get-map . *))'),
+		    this.handleGetMap);
   },
 
   function declareCapabilities() {
@@ -177,6 +112,34 @@ util.inherits(Spaceman, CWCModule);
 	  name: 'location',
 	  gloss: '"file containing a geographic region image, or a code for the region"',
 	  idCode: 'LOCATION',
+	  format: ['value-of', 'format']
+	}
+      ]
+    }});
+    this.sendMsg({ 0: 'tell', content: { 0: 'define-service',
+      name: 'get-map',
+      component: this.name,
+      input: [
+        { 0: 'input',
+	  name: 'description',
+	  gloss: '"description of geographic region"',
+	  idCode: 'GEO_DESCRIPTION',
+	  format: ['or', 'ont::string', 'ont::list'],
+	  requirements: ':required'
+	},
+	{ 0: 'input',
+	  name: 'format',
+	  gloss: '"raster graphics format"',
+	  idCode: 'GEO_FORMAT',
+	  format: 'ont::list',
+	  requirements: ':required'
+	}
+      ],
+      output: [
+        { 0: 'output',
+	  name: 'map',
+	  gloss: '"file containing a map image"',
+	  idCode: 'MAP',
 	  format: ['value-of', 'format']
 	}
       ]
@@ -225,6 +188,72 @@ util.inherits(Spaceman, CWCModule);
     }
   },
 
+  function handleGetMap(msg) {
+    var callback = (result) => {
+      if (result[0] == 'failure') {
+	this.replyToMsg(msg, 
+	    { 0: 'reply', content: { 0: 'report', content: result } });
+      } else {
+	this.replyToMsg(msg,
+	    { 0: 'reply', content: { 0: 'report', content: { 0: 'answer', map: result } } });
+      }
+    };
+    try {
+      var content = KQML.keywordify(msg.content);
+      if (!('format' in content)) {
+	throw errors.missingArgument('get-map', ':format');
+      }
+      var format = content.format;
+      if (!(format.length == 4 && format[0].toLowerCase() == 'raster' &&
+	    KQML.isKQMLString(format[1]))) {
+	throw errors.invalidArgument(content, ':format', '(raster format-name width height)');
+      }
+      if (!('description' in content)) {
+	throw errors.missingArgument('get-map', ':description');
+      }
+      var description = content.description;
+      // if the requested format isn't PNG, insert a conversion in the callback
+      var callback2 = callback;
+      if (KQML.kqmlStringAsJS(format[1]).toLowerCase() != 'png') {
+	callback2 = (pngFileKQML => {
+	  if (pngFileKQML[0] == 'failure') {
+	    callback(pngFileKQML);
+	    return;
+	  }
+	  try {
+	    var inputFile = pngFileKQML.name;
+	    var outputBase = inputFile.replace(/-\d+x\d+\.png$/, '');
+	    convertRasterFormats(format, inputFile, outputBase, [], callback);
+	  } catch (err) {
+	    callback(errors.nestedError('', err));
+	  }
+	});
+      }
+      // insert getting the map from a bounding box into the callback
+      var callback3 = (eastingNorthingBBox => {
+	if (eastingNorthingBBox[0] == 'failure') {
+	  callback2(eastingNorthingBBox);
+	  return;
+	}
+	try {
+	  getEquirectangularMap(eastingNorthingBBox, format.slice(2,4),
+				callback2);
+	} catch (err) {
+	  callback2(errors.nestedError('', err));
+	}
+      });
+      // if the description is already a bounding box, just call the callback
+      if (Array.isArray(description) && description[0].toLowerCase() == 'box') {
+	callback3(description);
+      } else { // otherwise, do a get-geographic-region for the bounding box
+	this.evaluateDescription(['box', '"easting-northing"'], description,
+				 callback3);
+      }
+    } catch (err) {
+      callback(errors.nestedError('while handling get-map request: ', err));
+    }
+  },
+
   /* Call callback with a structure containing the filename of the described
    * region in the given format (file :name "" :format (...)), or an error
    * structure (error :comment "...").
@@ -233,8 +262,69 @@ util.inherits(Spaceman, CWCModule);
     try {
       var formatStyle = format[0].toLowerCase();
       var formatName = KQML.kqmlStringAsJS(format[1]).toLowerCase();
-      if ('string' == typeof(description) &&
-	  description.toLowerCase() == 'wd') {
+      if (formatStyle == 'box') {
+	var width, height;
+	if (formatName == 'easting-northing') { // TODO lat-lon as strings?
+	  if (format.length != 2)
+	    throw errors.invalidArgumentCount(format, 1);
+	} else if (formatName == 'x-y') {
+	  if (format.length != 4)
+	    throw errors.invalidArgumentCount(format, 3);
+	  if ('number' != typeof format[2])
+	    throw errors.invalidArgument(format, 2, 'number');
+	  width = format[2];
+	  if ('number' != typeof format[3])
+	    throw errors.invalidArgument(format, 3, 'number');
+	  height = format[3];
+	} else {
+	  throw errors.invalidArgument(format, 1, "easting-northing or x-y");
+	}
+	this.evaluateDescription(['vector', '"GeoJSON"'], description, (gj) => {
+	  try {
+	    if (gj[0] == 'file') { // success
+	      // load the file as a MultiPolygon
+	      var gjName = KQML.kqmlStringAsJS(gj.name);
+	      var mp = this.readGeoJsonMultiPolygon(gjName);
+	      // find the bounding box in GeoJSON coordinates
+	      var first = true;
+	      var minEasting=0, minNorthing=0, maxEasting=0, maxNorthing=0;
+	      mp.coordinates.forEach((polygon) => {
+		polygon.forEach((ring) => {
+		  ring.forEach((vertex) => {
+		    if (first) {
+		      first = false;
+		      minEasting = maxEasting = vertex[0];
+		      minNorthing = maxNorthing = vertex[1];
+		    } else {
+		      if (vertex[0] < minEasting) minEasting = vertex[0];
+		      if (vertex[0] > maxEasting) maxEasting = vertex[0];
+		      if (vertex[1] < minNorthing) minNorthing = vertex[1];
+		      if (vertex[1] > maxNorthing) maxNorthing = vertex[1];
+		    }
+		  });
+		});
+	      });
+	      // convert coordinates if necessary, and return a box
+	      if (formatName == 'easting-northing') {
+		callback(['box', minEasting, minNorthing, maxEasting, maxNorthing]);
+	      } else if (formatName == 'x-y') {
+		var minX = (minEasting + 180) * width / 360;
+		var minY = (90 - maxNorthing) * height / 180;
+		var maxX = (maxEasting + 180) * width / 360;
+		var maxY = (90 - minNorthing) * height / 180;
+		callback(['box', minX, minY, maxX, maxY]);
+	      }
+	    } else if (gj[0] == 'failure') {
+	      callback(gj);
+	    } else {
+	      callback(errors.programError("expected a file or a failure from evaluating a description with :format (vector \"GeoJSON\"), but got a " + gj[0]));
+	    }
+	  } catch (err) {
+	    callback(errors.nestedError('', err));
+	  }
+	});
+      } else if ('string' == typeof(description) &&
+		 description.toLowerCase() == 'wd') {
 	this.evaluateWorld(format, formatStyle, formatName, callback);
       } else if (KQML.isKQMLString(description)) {
 	var searchStr = KQML.kqmlStringAsJS(description).toLowerCase();
@@ -329,6 +419,16 @@ util.inherits(Spaceman, CWCModule);
  	      callback(errors.nestedError("while processing neighbors results: ", err));
  	    }
  	  });
+	} else if (verb == 'selection') {
+	  this.selectionToBox(description, (box) => {
+	    if (box[0] == 'failure') {
+	      callback(box);
+	    } else if (box[0] == 'box') {
+	      this.evaluateDescription(format, box, callback);
+	    } else {
+	      callback(errors.programError("expected a box or a failure from converting a selection to a box, but got a " + box[0]));
+	    }
+	  });
 	} else if (verb == 'intersection') {
 	  if (formatStyle == 'raster') {
 	    this.composite(format, 'intersection', 'darken', description.slice(1),
@@ -646,6 +746,84 @@ util.inherits(Spaceman, CWCModule);
 	result.format = format;
 	callback(result)
       });
+    }
+  },
+
+  function selectionToBox(selection, callback) {
+    if (selection.length < 3 || selection.length > 4) {
+      throw errors.invalidArgumentCount(selection, "2 or 3 arguments: selected-rectangle [page-bounds-rectangle] displayed-region");
+    }
+    var selected = KQML.keywordify(selection[1]);
+    if (selection.length == 3) { // 2 arguments
+      // get middle argument (page bounds rectangle) by asking PDFExtractor or
+      // ImageDisplay to describe the page or image, and then recurse on the
+      // 3-arg selection
+      var pageID, receiver;
+      if ('page' in selected) {
+	pageID = KQML.keywordify(selected.page).id;
+	receiver = 'PDFExtractor';
+      } else if ('image' in selected) {
+	pageID = selected.image;
+	receiver = 'ImageDisplay';
+	// convert point to 1px x 1px rectangle
+	if (selected[0] == 'point') {
+	  selection[1] =
+	    [ 'rectangle', ':image', pageID,
+	      ':x', selected.x, ':y', selected.y,
+	      ':w', 1, ':h', 1
+	    ];
+	}
+      } else {
+	throw errors.missingArgument(selected[0], ':page-or-image');
+      }
+      this.sendWithContinuation(
+        { 0: 'request', receiver: receiver, content:
+	  { 0: 'describe', what: pageID } },
+	(replyMsg) => {
+	  try {
+	    var answer = KQML.keywordify(replyMsg.content).content;
+	    if (answer[0] == 'failure') throw answer;
+	    var pageBounds =
+	      KQML.keywordify(KQML.keywordify(answer).description).bounds;
+	    // HACK: adjust pageBounds to take account of scale added to bottom
+	    // of image by ImageDisplay (which adds 0.05 of the original
+	    // height)
+	    if (receiver == 'ImageDisplay') {
+	        pageBounds[8] /= 1.05;
+	    }
+	    this.selectionToBox(
+	      ['selection', selection[1], pageBounds, selection[2]],
+	      callback
+	    );
+	  } catch (err) {
+	    callback(errors.nestedError('while processing reply from PDFExtractor: ', err));
+	  }
+	}
+      );
+    } else { // 3 arguments
+      var pageBounds = KQML.keywordify(selection[2]);
+      var drDesc = selection[3];
+      this.evaluateDescription(
+        ['box', '"easting-northing"'], drDesc,
+	(drBounds) => {
+	  try {
+	    if (drBounds[0] == 'failure') throw drBounds;
+	    var hScale = (drBounds[3] - drBounds[1]) / pageBounds.w;
+	    var hOffset = drBounds[1];
+	    var vScale = (drBounds[2] - drBounds[4]) / pageBounds.h;
+	    var vOffset = drBounds[4];
+	    // NOTE: we ignore pageBounds.{x,y} because they're always 0
+	    var westSideLon = selected.x * hScale + hOffset;
+	    var eastSideLon = (selected.x + selected.w) * hScale + hOffset;
+	    var northSideLat = selected.y * vScale + vOffset;
+	    var southSideLat = (selected.y + selected.h) * vScale + vOffset;
+	    callback(['box', westSideLon, southSideLat,
+			     eastSideLon, northSideLat]);
+	  } catch (err) {
+	    callback(errors.nestedError('while processing displayed region bounds: ', err));
+	  }
+	}
+      );
     }
   },
 
@@ -1004,7 +1182,7 @@ util.inherits(Spaceman, CWCModule);
       }
       var host = 'nominatim.openstreetmap.org';
       var path = '/search?' + querystring.stringify(query);
-      console.log(`https://${host}/${path}`);
+      console.log('https://' + host + path);
       var req = https.request({
 	host: host,
 	path: path,
@@ -1114,34 +1292,38 @@ util.inherits(Spaceman, CWCModule);
     var countries = JSON.parse(str);
     // add some countries missing from countries.json that we would have gotten
     // from Wikipedia's ISO 3166 table
-    countries.push({
-      name: {
-	common: 'Bonaire, Sint Eustatius and Saba',
-	official: 'Bonaire, Sint Eustatius and Saba'
-      },
-      altSpellings: [],
-      cca2: 'BQ',
-      cca3: 'BES',
-      ccn3: '535',
-      region: 'Americas',
-      subregion: 'Caribbean',
-      borders: []
-    });
-    countries.push({
-      name: {
-	common: 'Saint Helena, Ascension and Tristan da Cunha',
-	official: 'Saint Helena, Ascension and Tristan da Cunha'
-      },
-      altSpellings: [],
-      cca2: 'SH',
-      cca3: 'SHN',
-      ccn3: '654',
-      // they're kind of in the middle of the south atlantic ocean, but I'm
-      // guessing they're closest to the "Southern Africa" region
-      region: 'Africa',
-      subregion: 'Southern Africa',
-      borders: []
-    });
+    if (!countries.some((c) => (c.cca2 == 'BQ'))) {
+      countries.push({
+	name: {
+	  common: 'Bonaire, Sint Eustatius and Saba',
+	  official: 'Bonaire, Sint Eustatius and Saba'
+	},
+	altSpellings: [],
+	cca2: 'BQ',
+	cca3: 'BES',
+	ccn3: '535',
+	region: 'Americas',
+	subregion: 'Caribbean',
+	borders: []
+      });
+    }
+    if (!countries.some((c) => (c.cca2 == 'SH'))) {
+      countries.push({
+	name: {
+	  common: 'Saint Helena, Ascension and Tristan da Cunha',
+	  official: 'Saint Helena, Ascension and Tristan da Cunha'
+	},
+	altSpellings: [],
+	cca2: 'SH',
+	cca3: 'SHN',
+	ccn3: '654',
+	// they're kind of in the middle of the south atlantic ocean, but I'm
+	// guessing they're closest to the "Southern Africa" region
+	region: 'Africa',
+	subregion: 'Southern Africa',
+	borders: []
+      });
+    }
     countries.forEach((json) => {
       if (json.region == '') {
 	json.region = "Antarctica";

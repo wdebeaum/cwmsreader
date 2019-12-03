@@ -3,7 +3,7 @@
 ;;;;
 
 (define-words :pos W::V 
-  :templ agent-affected-xp-templ
+  :TEMPL AGENT-AFFECTED-XP-NP-TEMPL
  :words (
 (w::crop
  (senses
@@ -21,7 +21,7 @@
 (w::crop
  (senses
   (
-   (LF-PARENT ONT::plant)
+   (LF-PARENT ONT::crop)
    (TEMPL COUNT-PRED-TEMPL)
    (example "winter crop")
    )

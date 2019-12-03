@@ -72,7 +72,7 @@ class VariableFinder(TripsModule):
         Remove characters that shouldn't be in a KQML/Lisp symbol. See also
         $symbol_component_re in KQML.pm.
         """
-        return re.sub(r"[,'`\"#\(\):\|\\]", '', re.sub(r"\s", '_', s))
+        return re.sub(r"[,'`\"#\(\):;\|\\]", '', re.sub(r"\s", '_', s))
 
     def create_result(self, result, is_code, msg):
         """
@@ -85,7 +85,7 @@ class VariableFinder(TripsModule):
             variable = KQMLList()
             match = KQMLPerformative('match')
             if is_code:
-                for k, v in ky_mp['variable'].iteritems():
+                for k, v in ky_mp['variable'].items():
                     kqml_v = v
                     if isinstance(v, str):
                         kqml_v = self.kqml_normalize(v)
@@ -93,7 +93,7 @@ class VariableFinder(TripsModule):
                         kqml_v = KQMLList([self.kqml_normalize(e) for e in v])
                     variable.add(KQMLList([self.kqml_normalize(k), kqml_v]))
                 code = KQMLList()
-                for k, v in ky_mp['code'].iteritems():
+                for k, v in ky_mp['code'].items():
                     code.add(KQMLList([self.kqml_normalize(k), self.kqml_normalize(v)]))
                 match.set(':code', code)
             else:
