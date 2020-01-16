@@ -368,31 +368,6 @@ if test -z "$reader"; then
   $TRIPS_BASE/bin/VariableFinder $port_opt \
   2>&1 |tee VariableFinder.err) &
 
-# Start TWISTAgent
-(sleep 5; \
-  $TRIPS_BASE/bin/TWISTAgent $port_opt \
-  2>&1 |tee TWISTAgent.err) &
-
-# Start unit-converter
-(sleep 5; \
-  $TRIPS_BASE/bin/unit-converter $port_opt \
-  2>&1 |tee unit-converter.err) &
-
-# Start ABN2
-(sleep 5; \
-  $TRIPS_BASE/bin/ABN2 $port_opt \
-  2>&1 |tee ABN2.err) &
-
-# Start FoodSec
-(sleep 5; \
-  $TRIPS_BASE/bin/FoodSec $port_opt \
-  2>&1 |tee FoodSec.err) &
-
-# Start WelfareBenes
-(sleep 5; \
-  $TRIPS_BASE/bin/WelfareBenes $port_opt \
-  2>&1 |tee WelfareBenes.err) &
-
 fi
 
 # make sure we have the storage folder, even of empty

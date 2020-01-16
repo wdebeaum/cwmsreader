@@ -1,7 +1,7 @@
 /*
  * DrumGUI.java
  *
- * $Id: DrumGUI.java,v 1.86 2019/11/27 00:20:07 lgalescu Exp $
+ * $Id: DrumGUI.java,v 1.94 2019/12/26 17:49:12 lgalescu Exp $
  *
  * Author: Lucian Galescu <lgalescu@ihmc.us>,  8 Feb 2010
  */
@@ -122,7 +122,7 @@ public class DrumGUI extends StandardTripsModule {
     /** When true, we can do whatever to close off the current document, then can move on to a new one */
     private boolean documentDone = true;
     /** ID for the paragraph currently being processed. */
-    protected String paragraphId;
+    protected String paragraphId = null;
     /** Counter for external {@code run-text} requests. */
     protected int runTextCounter = 0;
     /** Utterance number (uttnum) of the last utterance of the current fragment. */
@@ -202,6 +202,13 @@ public class DrumGUI extends StandardTripsModule {
      * @see #splitOnNewlines
      */
     private boolean splitParagraphsMode = false;
+    /**
+     * If {@code true}, paragraphs that don't look like sentences are skipped. For this option to be on,
+     * {@link #splitParagraphsMode} must also be on.
+     * 
+     * @see #splitParagraphsMode
+     */
+    private boolean validateParagraphs = false;
     /**
      * If {@code true}, the document is considered pre-processed to contain one sentence per line. For the moment this
      * turns off {@link #splitParagraphsMode}.
@@ -299,7 +306,9 @@ public class DrumGUI extends StandardTripsModule {
         splitOnNewlines = propertyValueBoolean("input.split-on-newlines");
         // break document into paragraphs?
         splitParagraphsMode = propertyValueBoolean("input.split-into-paragraphs") && !splitOnNewlines;
-
+        // break document into paragraphs?
+        validateParagraphs =propertyValueBoolean("input.validate-paragraphs") && splitParagraphsMode;
+                
         // ready
         initLog();
         dumpProperties();
@@ -401,6 +410,7 @@ public class DrumGUI extends StandardTripsModule {
         properties.put("tag.options.default", "(:split-clauses true :split-sentences true)");
         properties.put("input.split-into-paragraphs", "false");
         properties.put("input.split-on-newlines", "false");
+        properties.put("input.validate-paragraphs", "false");
         properties.put("extractions.mode", "DRUM");
         properties.put("ekb.reasoner", "DRUM");
     }
@@ -1370,6 +1380,7 @@ public class DrumGUI extends StandardTripsModule {
     private void handleUtteranceFailed(KQMLList content) {
         KQMLObject uttnumObj = content.getKeywordArg(":uttnum");
         int uttnum = Integer.parseInt(uttnumObj.toString());
+        Debug.warn("STATE: failed uttnum: " + uttnum);
         abandonUttnum(uttnum);
         checkIfDoneProcessing();
     }
@@ -1629,7 +1640,7 @@ public class DrumGUI extends StandardTripsModule {
      * @param haveInferredEKB
      */
     private void callback(KQMLPerformative taskRequest, boolean haveInferredEKB) {
-        if (gotOK) { // otherwise we must have rejected it already
+        if (haveInferredEKB || gotOK) { // otherwise we must have rejected it already
             reply(taskRequest, makeExtractionsResultMessage());
         }
     }
@@ -2024,10 +2035,19 @@ public class DrumGUI extends StandardTripsModule {
     /**
      * Document normalization.
      * <p>
-     * For the moment, this just means replacing Unicode characters that are not valid XML characters. 
+     * For the moment, this just means replaces control characters that are not valid
+     * XML characters with whitespace (space or newline). Replacement is done character-for-character so that character
+     * positions are not affected by this transformation of the input.
      */
     private void normalizeDocument() {
-        currentInputData = currentInputData.replace("\u000C", "\n");
+        currentInputData = currentInputData
+                .replace("\u0003", "\n")    // ^C, ETX
+                .replace("\u0005", "\n")    // ^E, ENQ
+                .replace("\u000C", "\n")    // ^L, FORM-FEED (FF)
+                .replace("\u0010", "\n")    // ^P, DLE
+                .replace("\u0015", "\n")    // ^U, NAK
+                .replace("\u00A0", " ")     // NO-BREAK SPACE
+                .replaceAll("[\\p{Cc}&&[^\\p{Space}]]", " ");     // all other control chars
     }
 
     /**
@@ -2050,7 +2070,22 @@ public class DrumGUI extends StandardTripsModule {
         while (fMatcher.find()) {
             frags.add(fMatcher.group(1));
             offsets.add(fMatcher.start(1));
-            Debug.debug("frag " + frags.size() + ":" + offsets.lastElement() + ":" + frags.lastElement());
+            Debug.debug("frag " + frags.size() + "@"  + offsets.lastElement() + ": " + frags.lastElement());
+        }
+        
+        if (validateParagraphs) {
+            // validate fragments
+            Iterator itf = frags.iterator();
+            Iterator ito = offsets.iterator();
+            while (itf.hasNext() && ito.hasNext()) {
+                String f = (String) itf.next();
+                Integer o = (Integer) ito.next();
+                if (! isValidText(f)) {
+                    itf.remove();
+                    ito.remove();
+                }
+            }
+            Debug.info(frags.size() + " valid fragments");
         }
         int n = frags.size();
         fragments = frags.toArray(new String[n]);
@@ -2059,21 +2094,115 @@ public class DrumGUI extends StandardTripsModule {
             fragmentOffsets[i] = offsets.get(i);
         }
     }
+    
+    /**
+     * Checks whether the current paragraph (fragment) is text.
+     */
+    private boolean isValidText(String text) {
+        Debug.debug("validating text: " + text);
+        // tokenize
+        String[] tokens = text.split("\\s+");
+        int nTokens = tokens.length;
+        if (nTokens == 0) {
+            Debug.warn("text is empty");
+            return false;
+        }
+        Debug.debug("tokens found: " + nTokens);
+        // check text characteristics
+        int nWordTokens = 0;
+        int maxWordSeqLen = 0;
+        int maxGapLen = 0;
+        double wordDensity;
+	double avgWordLen = 0.0;
+        int tempWSLen = 0;
+        int tempGapLen = 0;
+	int tempTotalWordLen = 0;
+        for (int i = 0; i<tokens.length; i++) {
+            if (isWord(tokens[i])) {
+                nWordTokens++;
+                tempWSLen++; tempTotalWordLen += tokens[i].length();
+                if (tempGapLen > maxGapLen) { maxGapLen = tempGapLen; }
+                tempGapLen = 0;
+            } else {
+                if (tempWSLen > maxWordSeqLen) { maxWordSeqLen = tempWSLen; }
+                tempWSLen = 0;
+                tempGapLen++;
+            }
+        }
+        if (tempWSLen > maxWordSeqLen) { maxWordSeqLen = tempWSLen; }
+        if (tempGapLen > maxGapLen) { maxGapLen = tempGapLen; }
+        wordDensity = (double) nWordTokens / nTokens;
+	if (nWordTokens > 0)
+	    avgWordLen = (double) tempTotalWordLen / nWordTokens;
+	
+        // validation heuristic: not too many nonwords, either long seq of words or short seqs of non-words; avg word length must be reasonably large
+        boolean testW = nWordTokens > 5; 
+	boolean testW2 = (nWordTokens * wordDensity) >= 2;
+        boolean testWD = wordDensity >= 0.75;
+        boolean testLWS = maxWordSeqLen >= 5;
+        boolean testLGS = maxGapLen < 5;
+	boolean testAWL = avgWordLen >= 3;
+        boolean result =
+	    (nTokens <= 10) // short sentences are ok
+	    ||
+	    ( (testW || testW2) && testAWL // sufficient number of actual words
+	      && testWD  // not too many non-words
+	      && (testLWS // there is at least one reasonably long sequence of actual words
+		  || testLGS)); // or the sequences of non-words are fairly short
+	
+        Debug.debug("word-like tokens: " + nWordTokens + " ["+ (testW ? "OK" : "-") +"]");
+        Debug.debug("avg word length: " + String.format("%.2f", avgWordLen) + " ["+ (testAWL ? "OK" : "-") +"]");
+        Debug.debug("word density: " + String.format("%.2f", wordDensity) + " ["+ (testWD ? "OK" : "-") +"]");
+        Debug.debug("longest word sequence: " + maxWordSeqLen + " ["+ (testLWS ? "OK" : "-") +"]");
+        Debug.debug("longest non-word sequence: " + maxGapLen + " ["+ (testLGS ? "OK" : "-") +"]");
+        Debug.warn("text is"+ (result ? "" : " not") + " valid w/l/d/s/g=["
+		   + nWordTokens + "/"
+		   + String.format("%.2f", avgWordLen) + "/"
+		   + String.format("%.2f", wordDensity) + "/"
+		   + maxWordSeqLen + "/" + maxGapLen + "]");
+        return result;
+    }
+
+    /**
+     * Checks if a token is word-like.
+     * <p>
+     * A word-like token is one that starts with a letter and contains any sequence of letters, marks or dashes.
+     * Initial punctuation (opening quotes or brackets) and final punctuation (we allow a single punctuation character,
+     * but otherwise there are no restrictions on its type) are ignored.
+     * <p>
+     * Of note, number-like tokens are not considered word-like by this function (numbers, currency, dates, etc.).
+     * <p>
+     * TODO: use a dictionary
+     * 
+     * @param token
+     * @return
+     */
+    private boolean isWord(String token) {
+        return token.matches("^[\\p{Ps}\\p{Pi}]?\\p{L}[\\p{L}\\p{M}\\p{Pd}\\p{Pf}']*[\\p{P}]?$");
+    }
 
     /**
      * Sends tag request for current paragraph. Sent at the beginning of processing when {@link #splitOnNewlines} is
-     * {@code true}
+     * {@code true}.
      */
     private void sendTagRequestForFragment() {
-        // if we handle the paragraph IDs, we need to send start-paragraph
-        sendStartParagraph();
+        if (fragmentsDone == 0) {
+            if (fragments.length == 0) {
+                Debug.warn("No fragments!");
+                documentDone();
+                return;
+            }
+            // if we handle the paragraph IDs, we need to send start-paragraph
+            sendStartParagraph();
+        }
         if (fragmentsDone < fragments.length) {
             try {
+                gotOK = false;
                 // Debug.debug("Processing fragment["+fragmentsProcessed+"]:
                 // /"+(fragmentOffsets[fragmentsProcessed])+"/");
                 sendWithContinuation(makeTagMessage(fragments[fragmentsDone]),
                         new TagReplyHandler(fragmentsDone));
-                Debug.debug("STATE: tag");
+                Debug.debug("STATE: tag fragment");
             } catch (Exception ex) {
                 ex.printStackTrace();
             }
@@ -2089,14 +2218,15 @@ public class DrumGUI extends StandardTripsModule {
      * 
      */
     private void sendStartParagraph() {
-        if (splitOnNewlines && (fragmentsDone == 0)) {
-            try {
-                send(KQMLPerformative.fromString("(tell :content (start-paragraph :id paragraph" + currentDatasetIndex
-                        + "))"));
-                Debug.debug("STATE: start-paragraph");
-            } catch (Exception ex) {
-                ex.printStackTrace();
-            }
+        if (! splitOnNewlines) {
+            return;
+        }
+        try {
+            send(KQMLPerformative.fromString("(tell :content (start-paragraph :id paragraph" + currentDatasetIndex
+                    + "))"));
+            Debug.debug("STATE: start-paragraph");
+        } catch (Exception ex) {
+            ex.printStackTrace();
         }
     }
 

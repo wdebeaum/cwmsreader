@@ -240,7 +240,7 @@
     :sem (F::Situation (F::Trajectory -))
  :arguments ((:REQUIRED ONT::Affected ((? o1 F::Situation F::Phys-obj f::abstr-obj)))
 	     (:ESSENTIAL ONT::agent ((? o2 F::Situation F::Phys-obj f::abstr-obj)))
-	     (:OPTIONAL ONT::Result ((? res F::situation F::abstr-obj)))
+	     (:OPTIONAL ONT::Result ((? res F::situation F::abstr-obj) (F::tangible +)))
 	     )
  )
 
@@ -586,7 +586,7 @@
 
 
 (define-type ONT::touch
-    :wordnet-sense-keys ("touch%2:35:00" "touch%1:04:00")
+    :wordnet-sense-keys ("touch%2:35:00" "touch%1:04:00" "caress%2:35:00")
     :parent ONT::cause-contact
     )
 
@@ -618,6 +618,12 @@
     :parent ont::cause-position
    ;:arguments ((:OPTIONAL ONT::instrument))
     )
+
+(define-type ONT::cause-surround
+    :wordnet-sense-keys ("enclose%2:35:00")
+    :parent ont::cause-position
+    )
+
 
 (define-type ONT::orient
     :comment "cause an AFFECTED to be oriented in some direction"
@@ -774,7 +780,7 @@
  :parent ONT::consume
  :arguments
  ((:REQUIRED ONT::Affected (F::Phys-obj (F::Form (? f f::solid f::solid-object))
-					(f::type (? t ont::food F::organism)))))
+					(f::type (? t ont::food ont::organism)))))
  )
 
 
@@ -888,19 +894,21 @@
  :sem (F::Situation (F::Aspect F::static) (F::Time-span F::extended) (F::Trajectory -))
  :arguments ((:REQUIRED ONT::neutral )
 	     ;; this is still here until we decide what to do with the formal-pred mappings for be
-	     (:essential ONT::formal (F::Abstr-obj (f::type (? cbd ont::domain-property ont::position-reln ont::predicate ont::relation)))) ; ont::predicate: with, without, around; ont::relation: the same
+	     (:essential ONT::formal ((? formal F::Abstr-obj F::situation) (f::type (? cbd ont::domain-property ont::position-reln ont::predicate ont::relation ONT::MEMBERSHIP)))) ; ont::predicate: with, without, around; ont::relation: the same; ont::membership: It is a dog
 ;             (:ESSENTIAL ONT::PROPERTY ((? oc2 F::abstr-obj))) ;; only properties (preds) -- for event nouns use ont::have-experience or ont::participating
              )
  )
 
-(define-type ONT::BE-INACTIVE
+#|(define-type ONT::BE-INACTIVE
  :wordnet-sense-keys ("rest%2:41:00")
- :parent ONT::HAVE-PROPERTY
+ :parent ONT::PERSISTENT-STATE ;HAVE-PROPERTY
 )
+|#
 
 
 (define-type ONT::possibly-true
  ;:wordnet-sense-keys ("seem%2:39:01")
+ :wordnet-sense-keys ("appear%2:39:01")
  :parent ONT::event-of-state
  :arguments ((:REQUIRED ONT::formal (F::situation))))
 
@@ -913,20 +921,24 @@
 ; )
 
 ;; A root for general ownership and non-ownership: he has a dog, the computer includes a wireless card, the offer excludes existing members, the path excludes the battery
-(define-type ONT::HAVING
+#|(define-type ONT::HAVING
  :parent ONT::event-of-state
  :sem (F::SITUATION (F::Aspect F::static) (F::Time-span F::Extended) (F::Trajectory -))
  :arguments ((:REQUIRED ONT::NEUTRAL ((? oc1 F::Phys-obj F::abstr-obj F::Situation) (F::tangible +)))
 	     (:ESSENTIAL ONT::NEUTRAL1 ((? oc2 F::Phys-obj F::abstr-obj) (F::tangible +))) 
              )
  )
+|#
 
 ;; He has a dog, the truck has wheels -- general ownership/possession
 ;; the project has three programmers; the problem has a solution; your idea has a problem
 ;; 12/2010 we have lines down; we have a book ready for you
 (define-type ONT::HAVE
  :wordnet-sense-keys ("keep%2:40:12" "keep%2:42:12" "keep%2:42:01" "take%2:42:10" "pack%2:42:00" "carry%2:42:01" "include%2:31:00" "include%2:42:00" "have%2:40:00"  "have%2:42:00"  "have%2:41:00"  "have%2:40:01" "have_got%2:40:00" "have%2:29:02" "hold%2:40:00")
-    :parent ONT::HAVING
+    :parent ONT::event-of-state ;HAVING
+    :sem (F::SITUATION (F::Aspect F::static) (F::Time-span F::Extended) (F::Trajectory -))
+    :arguments ((:REQUIRED ONT::NEUTRAL ((? oc1 F::Phys-obj F::abstr-obj F::Situation) (F::tangible +)))
+             (:ESSENTIAL ONT::NEUTRAL1 ((? oc2 F::Phys-obj F::abstr-obj) (F::tangible +))))
     ;; property argument needed here for the secondary predication 'we have lines down' 'we have a book ready'
     ;; added 12/2010 when conflating ont::secondary-have-property with ont::have
     ;;:arguments ((:optional ONT::PROPERTY ((? ocp F::abstr-obj))) ;; only properties (preds) -- for event nouns use ont::have-experience or ont::participating
@@ -959,7 +971,7 @@
  )
 
 (define-type ONT::APPEARS-TO-HAVE-PROPERTY
- :wordnet-sense-keys ("look%2:39:01" "seem%2:39:01" "seem%2:39:02" "seem%2:42:00" "sound%2:39:06" "taste%2:39:02")
+ :wordnet-sense-keys ("look%2:39:01" "seem%2:39:02" "seem%2:42:00" "sound%2:39:06" "taste%2:39:02");"seem%2:39:01" 
  :parent ONT::HAVE-PROPERTY
  :sem (F::situation (F::Aspect F::stage-level) (F::Time-span F::extended))
  )

@@ -1990,6 +1990,7 @@ usually not be 0 for speech. Also it finds one path quickly in order to set the 
 	((ont::motion (:mod :mod1 :mod2 :mod3 :mod4))
 	 ((ont::pos-as-containment-reln) :location)
 	 ;((ont::direction) :manner) ; e.g., forward 
+	 ((ont::at-scale-value) :manner)
 	 ((ont::to-loc ont::position-reln ont::goal-reln ont::direction-reln) :result)
 	 ((ont::source-reln) :source))	
 	((ont::motion (:result :result1 :result2))
@@ -2049,6 +2050,7 @@ usually not be 0 for speech. Also it finds one path quickly in order to set the 
 	 ((ont::acceptability-val) :evaluation)
 	 ((ont::pos-condition) :condition)
 	 ;;((ont::goal-reln) :goal)
+	 ((ont::at-scale-value) :manner) ; this goes before position-reln
 	 ((ont::position-reln ) :location)
 	 ((ont::accompaniment) :agent1)
 	 ((ont::by-means-of ont::with-instrument) :method)

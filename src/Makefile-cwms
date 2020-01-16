@@ -73,11 +73,6 @@ OTHER_PROGRAMS = \
 	Spaceman \
 	CropModeller \
 	VariableFinder \
-	TWIST \
-	ABN2 \
-	UnitConverter \
-	FoodSec \
-	WelfareBenes \
 	EKB \
 	Tools
 

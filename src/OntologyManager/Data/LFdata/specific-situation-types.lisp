@@ -3,6 +3,7 @@
 ;; DRUM
 (define-type ONT::mutation
  :parent ONT::event-of-change
+ :arguments ((:optional  ONT::affected ((? cau3a F::situation F::abstr-obj f::phys-obj) (F::tangible +))) )
  )
 
 ;; abstraction of stative verbs indicating position and orientation,
@@ -1048,7 +1049,7 @@
 ;;; They all occur at a point
 ;;; I kept them from the original hierarchy
 ;;; They didn't fit under FRAMENET frames
-(define-type ONT::LOCATED-MOVE-STATE
+(define-type ONT::PERSISTENT-STATE ;LOCATED-MOVE-STATE
     :parent ONT::event-of-action
     :comment "a state of (passively) maintaining some object's state (e.g., position, possession)"
     :sem (F::SITUATION (F::trajectory -))
@@ -1058,9 +1059,14 @@
 		)
     )
 
+(define-type ONT::BE-INACTIVE
+ :wordnet-sense-keys ("rest%2:41:00")
+ :parent ONT::PERSISTENT-STATE ;HAVE-PROPERTY
+)
+
 (define-type ont::confine
  :wordnet-sense-keys ("confine%2:41:00" "confine%2:35:01" "confinement%1:04:00" "confinement%1:04:01")
-  :parent ont::located-move-state
+  :parent ont::PERSISTENT-STATE ;located-move-state
   )
 
 #||
@@ -1170,7 +1176,7 @@
 
 (define-type ONT::STAY
  :wordnet-sense-keys ("stay%2:30:00" "remain%2:30:00" "rest%2:30:00" "dig_in%2:35:00" "settle%2:30:01" "stand_still%2:38:00" "stay%2:38:01" "stay_in_place%2:38:00" "live%2:42:08")
- :parent ONT::LOCATED-MOVE-STATE
+ :parent ONT::PERSISTENT-STATE ;LOCATED-MOVE-STATE
  :sem (F::SITUATION (F::Aspect F::Unbounded) (F::Cause F::Force) (F::Time-span F::Extended))
  :arguments ((:REQUIRED ONT::affected (F::Phys-obj (F::Mobility F::Movable)))
 	     
@@ -1236,7 +1242,12 @@
 (define-type ont::granulate
  :wordnet-sense-keys ("granulate%2:30:00" "granulate%2:30:01")
  :parent ont::change-integrity
-)
+ )
+
+(define-type ont::gasify-boil
+ :wordnet-sense-keys ("gasify%2:30:00" "boil%2:30:01")
+ :parent ont::change-integrity
+ )
 
 (define-type ONT::life-transformation
     :wordnet-sense-keys ("fruit%2:36:01" "cross-fertilize%2:29:00" "cross-fertilize%2:29:01" "work%2:30:14" "work%2:30:13" "ripen%2:30:01" "ripen%2:30:00" "mellow%2:30:00"
@@ -1860,7 +1871,7 @@
 
 (define-type ont::evoke-numbness
  :parent ont::neutral-experience
- :wordnet-sense-keys ("sedate%2:29:00" "numb%2:39:00")
+ :wordnet-sense-keys ("sedate%2:29:00" "numb%2:39:00" "anesthetize%2:29:00")
 )
 
 ;(define-type ONT::evoke-emotion
@@ -2574,8 +2585,8 @@
 
 (define-type ont::sing
     :parent ont::say
-    :wordnet-sense-keys ("sing%2:36:00")
-)
+    :wordnet-sense-keys ("sing%2:36:00" "singing%1:04:00")
+    )
 
 (define-type ont::extended-say
     :parent ont::say
@@ -2936,7 +2947,7 @@
 
 (define-type ONT::retain
  :wordnet-sense-keys ("keep%2:35:10" "stay_fresh%2:42:00" "keep%2:42:03" "keep%2:40:00" "hold_on%2:40:00" "cling%2:37:00" "lay_aside%2:40:00")
-  :parent ONT::located-move-state
+  :parent ONT::PERSISTENT-STATE ;located-move-state
   :arguments ((:REQUIRED ONT::affected ((? obj F::PHYS-OBJ F::ABSTR-OBJ)))
 ;	      (:OPTIONAL ONT::cause)
 	      (:OPTIONAL ONT::agent (F::phys-obj (F::intentional +)) (:implements cause))
@@ -3656,7 +3667,8 @@
 
 ;; shine, glow, glisten, gleam, sparkle
 (define-type ont::location-of-light
- :wordnet-sense-keys ("shine%2:43:00" "beam%2:43:03" "flash%2:39:00" "shine%2:43:03" "twinkle%1:11:00" "shimmer%1:11:00")
+    :wordnet-sense-keys ("shine%2:43:00" "beam%2:43:03" "flash%2:39:00" "shine%2:43:03" "twinkle%1:11:00" "shimmer%1:11:00"
+					 "glitter%2:39:00")
   :parent ont::emit-giveoff-discharge
   :sem (F::situation (:default (F::trajectory +)))
   ;;:arguments ((:essential ont::formal (f::phys-obj (F::intentional -))) ;; the thing that shines
@@ -3794,14 +3806,14 @@
 ; intensity-scale
 (define-type ont::intensify
  :wordnet-sense-keys ("augment%2:30:00" "intensify%2:30:01" "intensify%2:30:00" "sharpen%2:30:01" "sharpen%2:30:00")
- :parent ont::change-in-dimension
+ :parent ont::change-in-scale
  :arguments((:essential ONT::scale (f::abstr-obj (F::scale ont::intensity-scale) (F::orientation f::pos))))
  :sem (F::SITUATION  (F::Aspect F::bounded) (F::Time-span F::extended))
 )
 
 (define-type ont::lessen-intensity
  :wordnet-sense-keys ("weaken%2:30:03" "slack%2:30:04")
- :parent ont::change-in-dimension
+ :parent ont::change-in-scale
  :arguments((:essential ONT::scale (f::abstr-obj (F::scale ont::intensity-scale) (F::orientation f::neg))))
  :sem (F::SITUATION  (F::Aspect F::bounded) (F::Time-span F::extended))
 )
@@ -4171,14 +4183,17 @@
     )
 
 
+; takes non-tangible AFFECTED (e.g., amount)
 (define-type ONT::change-magnitude
  :wordnet-sense-keys ("change_magnitude%2:30:00" "change_intensity%2:39:00")
  :arguments (	     ;(:essential ont::affected (F::abstr-obj (f::scale ont::domain))) ; e.g., rainfall is physobj; flood is situation 
-	     (:essential ont::affected)
+	     ;(:essential ont::affected)
+	     (:essential ont::affected (F::abstr-obj (f::type (? t2 ont::domain ont::quantity-abstr ont::level)))) ; height, amount, level, degree
 	     (:essential ONT::scale (f::abstr-obj (F::scale ont::domain)))
 	     (:optional  ONT::result ((? cau2 F::situation F::Abstr-obj f::phys-obj) (F::type (? t ont::goal-reln ont::source-reln))))) 
 ; :parent ONT::adjust
- :parent ont::change-in-scale
+ ;:parent ont::change-in-scale
+ :parent ont::event-of-change
  )
 
 (define-type ONT::increase
@@ -4219,6 +4234,20 @@
  :parent ONT::decrease
  )
 
+(define-type ONT::adjust-to-extreme
+ ;:parent ONT::adjust
+ :parent ONT::change-magnitude
+ )
+
+(define-type ONT::minimize
+ :wordnet-sense-keys ("minimise%2:30:00")
+ :parent ONT::adjust-to-extreme
+ )
+
+(define-type ONT::maximize
+ :wordnet-sense-keys ("maximise%2:30:00")
+ :parent ONT::adjust-to-extreme
+ )
 
 
 (define-type ONT::fluctuate
@@ -4288,19 +4317,6 @@
 (define-type ont::sumoylation
     :parent ont::post-translational-modification
 )
-
-(define-type ONT::adjust-to-extreme
- :wordnet-sense-keys ("minimise%2:30:00" "minimize%2:30:00" "maximise%2:30:00" "maximize%2:30:00")
- :parent ONT::adjust
- )
-
-(define-type ONT::minimize
- :parent ONT::adjust-to-extreme
- )
-
-(define-type ONT::maximize
- :parent ONT::adjust-to-extreme
- )
 
 (define-type ONT::visual-adjust
  :wordnet-sense-keys ("blur%2:30:01" "blur%2:39:00" "blur%2:39:01" "focus%2:30:00" "sharpen%2:30:03" "sharpen%2:39:00" "soften%2:39:00")
@@ -4439,8 +4455,8 @@
 
 ;; specific types for caet
 ;; cook by fully immersing in liquid
-(define-type ont::boil
- :wordnet-sense-keys ("blanch%2:30:00" "boil%2:30:00" "boil%2:30:01" "boil%2:30:02" "coddle%2:30:00" "poach%2:30:00")
+(define-type ont::cook-boil
+ :wordnet-sense-keys ("blanch%2:30:00" "boil%2:30:02" "boil%2:30:00" "coddle%2:30:00" "poach%2:30:00")
  :parent ont::cook-in-liquid
  :comment "cook by fully immersing in boiling (or close to boiling) liquid"
 )
@@ -4697,6 +4713,11 @@
  :parent ONT::arranging
  )
 
+(define-type ONT::decorate
+    :wordnet-sense-keys ("decorate%2:36:00")
+    :parent ONT::arranging
+    )
+
 (define-type ONT::exchange
  :parent ONT::arranging
  :wordnet-sense-keys ("exchange%2:40:00" "exchange%2:30:00" "transpose%2:30:00" "transpose%2:30:02" "transpose%2:36:00" "transpose%2:30:01" "transpose%2:30:03")
@@ -4880,7 +4901,7 @@
 
 ;;; This corresponds to all cases where things intersect
 (define-type ONT::INTERSECT
- :wordnet-sense-keys ("cross%2:38:03" "intersect%2:38:00" "hold%2:35:01" "coexist%2:42:00")
+ :wordnet-sense-keys ("cross%2:38:03" "intersect%2:38:00" "coexist%2:42:00")
  :parent ONT::position
  :comment "two objects share a common subpart"
  :sem (F::Situation (F::Aspect F::Indiv-level) (F::Cause -))
@@ -4929,6 +4950,7 @@
 
 (define-type ONT::support
     :parent ONT::POSITION
+     :wordnet-sense-keys ("support%2:35:00")
     :sem (F::Situation (F::Aspect F::Indiv-level) (F::Cause -))
     )
 
@@ -5018,7 +5040,8 @@
  :wordnet-sense-keys ("slope%2:38:00" "ascend%2:38:10")
  :parent ONT::BE-AT
  :sem (F::Situation (F::aspect F::stage-level))
- :arguments ((:ESSENTIAL ONT::neutral (F::Phys-obj))              )
+ :arguments ((:ESSENTIAL ONT::neutral (F::Phys-obj))
+	     (:optional ont::orientation (f::abstr-obj (f::type (? xx ont::direction ont::goal-reln)))))
  )
 
 ;; tilt,lean
@@ -5158,7 +5181,12 @@
     )
 
 (define-type ONT::classify
-    :wordnet-sense-keys ("classify%2:31:01" "relegate%2:31:02" "classify%2:41:00" "separate%2:31:00" "sort_out%2:31:00" "assort%2:31:00" "sort%2:31:00" "class%2:31:00" "classify%2:31:00" "categorise%2:31:00" "categorize%2:31:00" "take%2:31:07" "read%2:31:09" "describe%2:31:00" "discern%2:39:00" "discover%2:39:00")
+    :wordnet-sense-keys ("classify%2:31:01" "relegate%2:31:02" "classify%2:41:00" "separate%2:31:00" "sort_out%2:31:00" "assort%2:31:00" "sort%2:31:00" "class%2:31:00" "classify%2:31:00" "categorise%2:31:00" "categorize%2:31:00" "take%2:31:07" "read%2:31:09" "discern%2:39:00" "discover%2:39:00")
+    :parent ONT::categorization
+    )
+
+(define-type ONT::identify
+    :wordnet-sense-keys ("identify%2:31:01")
     :parent ONT::categorization
     )
 
@@ -5209,7 +5237,7 @@
     :wordnet-sense-keys ("idle%2:41:00")
     ; :comment "events involving waiting about, loitering, idle without purpose, waste time etc"
     :comment "to linger in a place or location"
-    :parent ONT::LOCATED-MOVE-STATE
+    :parent ONT::PERSISTENT-STATE ;LOCATED-MOVE-STATE
     :sem (F::SITUATION (F::Aspect F::Unbounded) (F::Cause F::Force) (F::Time-span F::Extended))
     :arguments ((:OPTIONAL ONT::Agent (F::Phys-obj (F::Mobility F::Movable)))
 					;             (:OPTIONAL ONT::time-duration-rel (F::time (F::time-function f::time-unit)))

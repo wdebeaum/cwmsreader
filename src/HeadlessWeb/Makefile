@@ -8,7 +8,7 @@ SRCS=HeadlessWeb.js \
 # &nbsp;. Also, later versions of jsdom fail to pull in the required peer
 # dependency called request, so if ever we do upgrade jsdom we need to add
 # request here too.
-REQUIRES=jsdom@11.6.0 jquery
+REQUIRES=jquery jsdom@11.6.0
 
 CONFIGDIR=../config
 include $(CONFIGDIR)/javascript/prog.mk
