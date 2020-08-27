@@ -11,7 +11,7 @@ next if ($. == 1);
 # Unique Feature Identifier, Feature Class, feature DeSiGnation code, Name Type
 my ($ufi, $fc, $dsg, $nt, @names) = @F[1,9,10,17];
 $ufi =~ s/[^\w-\.]/_/g;
-$ufi = '_' . $ufi if ($ufi =~ /^[\d-]/);
+$ufi = 'P' . $ufi if ($ufi =~ /^[\d-]/);
 my $source = $ARGV;
 $source =~ s/.*\///;
 $source .= " row $.";

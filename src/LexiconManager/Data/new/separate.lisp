@@ -16,6 +16,13 @@
      (TEMPL AGENT-AFFECTED-XP-PP-TEMPL (xp (% w::pp (w::ptype (? t w::from)))))
      )
 
+    (
+     (LF-PARENT ont::SPATIAL-DIVIDE) 
+     (EXAMPLE "the fence separates the field")
+    
+     (TEMPL NEUTRAL-NEUTRAL1-XP-TEMPL )
+     )
+
     ((LF-PARENT ONT::separation)
      (SEM (F::Aspect F::Bounded) (F::Time-span F::Atomic))
      (TEMPL AGENT-NP-PLURAL-TEMPL)

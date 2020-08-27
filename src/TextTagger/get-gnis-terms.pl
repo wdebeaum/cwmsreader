@@ -25,7 +25,7 @@ END {
       print "\t$unnorm";
       for my $entry (@{$unnorm2entries->{$unnorm}}) {
 	my ($id, $class) = @$entry;
-	print qq/\t(place :id GNIS::_$id :class $class)/;
+	print qq/\t(place :id GNIS::P$id :class $class)/;
       }
     }
     print "\n";

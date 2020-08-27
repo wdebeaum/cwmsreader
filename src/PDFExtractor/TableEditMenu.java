@@ -52,10 +52,15 @@ public class TableEditMenu extends JToolBar implements TableModelListener, Page.
     redoAction = new UndoRedoAction(true);
     add(redoAction);
     redoAction.setEnabled(false);
-    autoSplitColumnsAction = new AutoSplitColumnsAction();
-    add(autoSplitColumnsAction);
-    autoMergeCellsAction = new AutoMergeCellsAction();
-    add(autoMergeCellsAction);
+    if (table.origin == null) {
+      autoSplitColumnsAction = null;
+      autoMergeCellsAction = null;
+    } else {
+      autoSplitColumnsAction = new AutoSplitColumnsAction();
+      add(autoSplitColumnsAction);
+      autoMergeCellsAction = new AutoMergeCellsAction();
+      add(autoMergeCellsAction);
+    }
     for (Class<? extends Table.Edit> c : Table.getEditClasses()) {
       SelectionEditAction a = new SelectionEditAction(c);
       selectionModel.addListener(a);
@@ -71,7 +76,8 @@ public class TableEditMenu extends JToolBar implements TableModelListener, Page.
       other.addTableModelListener(this);
     }
     table.addTableModelListener(this); // table isn't displayed yet, but will be
-    table.origin.getPage().addPageListener(this);
+    if (table.origin != null)
+      table.origin.getPage().addPageListener(this);
     setPreferredSize(new Dimension(360, 32)); // enough room for all buttons
   }
 
@@ -244,6 +250,8 @@ public class TableEditMenu extends JToolBar implements TableModelListener, Page.
   void updateSplitColumnActions() {
     for (JButton b : splitColumnButtons) { remove(b); }
     splitColumnButtons.clear();
+    if (table.origin == null)
+      return;
     List<Region> regions = table.origin.getPage().getRegions();
     synchronized (regions) {
       for (Region r : regions) {

@@ -25,6 +25,8 @@ my @stoplist = (# see also PersonalNames.pm
   qw(Jan Feb Mar Apr Jun Jul Aug Sept Oct Nov Dec),
   # seasons
   qw(Spring Summer Fall Autumn Winter),
+  # the words "Day" and "Month", capitalized, as part of observances
+  qw(Day Month),
   # cardinal direction names
   (map { ($_, lc($_)) } # get both capitalized and lowercase versions, since they're not all in the TRIPS lexicon
    map { ($_, $_ . "ern") } # get both the noun and the -ern adj formed from it
@@ -64,9 +66,53 @@ my @stoplist = (# see also PersonalNames.pm
      Will Would
      Shall Should
   ),
-  # W::SAME is actually not defined in the TRIPS lexicon (!)
-  qw(same)
+  # a few more short words that should've been caught by the rule mentioned
+  # above, but weren't, because BOS detection isn't perfect, and sometimes
+  # sentences are all-caps, and sometimes people randomly capitalize words in
+  # the middle of sentences (!)
+  qw(As For Not),
+  (map { ($_, lc($_)) } # get both capitalized and lowercase versions
+    # single words you might think are in the TRIPS lexicon, but aren't
+    qw(Agency Asylum
+       Battle
+       Camp Cereal Commons Core Cyclone
+       Dam Dire Donation
+       Equality Equity
+       Federation Foremost Forest
+       Goodwill Gravity Grenade
+       Institute
+       Legal Lieu Locust
+       Maize Mega Meta Minister Mission
+       Officer Oral
+       Paradox Peace Peoples Pest Poverty
+       Quarantine
+       Reader Refuge Republic Ripe
+       Same Sector Settlement Shields Singer Stark Swan
+       Unto
+    ),
+    # multiword phrases
+    'Emergency Medical Team', 'High Level', 'Home Base', 'Recreation Center',
+    'The Horn', 'World Bank', 'World Vision',
+    # names that are more likely to be personal names than place names
+    # TODO? use PersonalNames tagger's output to detect this case? not enabled in cwms, though
+    qw(Amanda Steven),
+  ),
+  # a few words that are in the trips lexicon, but are too long for that to
+  # prevent them from being tagged if they're capitalized
+  qw(Children
+     Enterprise
+     International
+     Location
+     Marriott
+     Opportunity Overview
+     Protection
+     Register
+     Simmering Standard
+     Transfer
+  )
 );
+# add all-caps versions of everything on the stoplist
+push @stoplist, map { uc($_) } @stoplist;
 
 my %countries_dsi_type2ont_type = (qw(
   capital CITY
@@ -177,7 +223,25 @@ sub tag_place_names {
   my %sentence_starts = ();
   for my $tag (@input_tags) {
     if ($tag->{type} eq 'sentence') {
-      $sentence_starts{$tag->{start}} = 1;
+      my $start = $tag->{start};
+      my $text = $tag->{text};
+      if ($text =~ /^\P{L}+/) {
+	# sentence starts with non-letters (e.g. bullet point); skip those
+	$text = $';
+	$start += $+[0];
+      }
+      for(;;) {
+	$sentence_starts{$start} = 1;
+	if ($text =~ /^\p{Lu}+\P{L}+/) {
+	  # sentence starts with all-caps words, count each as part of the
+	  # sentence start so we don't mistakenly think that they're
+	  # capitalized because they're names
+	  $text = $';
+	  $start += $+[0];
+	} else { # no more all-caps
+	  last;
+	}
+      }
     }
   }
   my @terms = ();
@@ -194,7 +258,9 @@ sub tag_place_names {
     # different
     my $lex = substr($str, $start, $end - $start);
     my $bos = $sentence_starts{$start};
-    my $short = (($end - $start) <= 3);
+    my $len = $end - $start;
+    my $short = ($len <= 3);
+    my $shortish = ($len <= 7);
     # skip stoplisted words
     next if (grep { $lex eq $_ } @stoplist);
     # skip bad matches
@@ -204,15 +270,16 @@ sub tag_place_names {
     # skip certain words already in the TRIPS lexicon
     next if ( $lex !~ /\s/ && # single word
 	      ( ($lex =~ /^\p{Ll}/) || # uncapitalized
-	        ($short && $bos) # short, at beginning of sentence
+	        ($shortish && $bos) # short-ish, at beginning of sentence
 	      ) &&
 	      word_is_in_trips_lexicon($self, $lex)
 	    );
-    # skip matches of two words, the first being lowercase/BOS "the", and the
-    # second already in the TRIPS lexicon, e.g. "the river" (an alternate name
-    # in GNO for New Brunswick, NJ!)
-    next if (($lex =~ /^the (\S+)$/ or ($bos and $lex =~ /^The (\S+)$/)) and
-             word_is_in_trips_lexicon($self, $1));
+    # skip matches of two words, the first being case-insensitive "the", and
+    # the second on the stoplist or already in the TRIPS lexicon, e.g. "the
+    # river" (an alternate name in GNO for New Brunswick, NJ!)
+    next if (($lex =~ /^the (\S+)$/i) and
+             ((grep { $1 eq $_ } @stoplist) or
+	      word_is_in_trips_lexicon($self, $1)));
     my %tag_common = (
       type => 'named-entity',
       lex => $lex,

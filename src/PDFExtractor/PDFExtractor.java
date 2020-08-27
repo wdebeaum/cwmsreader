@@ -29,6 +29,7 @@ import TRIPS.KQML.*;
 import TRIPS.util.cwc.Args;
 import TRIPS.util.cwc.CWCException;
 import TRIPS.util.cwc.InvalidArgument;
+import TRIPS.util.cwc.InvalidArgumentCombo;
 import TRIPS.util.cwc.MissingArgument;
 import TRIPS.util.cwc.StandardCWCModule;
 import TRIPS.util.cwc.SwingWindowManager;
@@ -621,9 +622,24 @@ public class PDFExtractor extends StandardCWCModule implements PDFPane.Listener,
   @Override
   public boolean receiveRequest(KQMLPerformative msg, String verb, KQMLPerformative content) throws CWCException, IOException {
     if (verb.equals("detect-table-regions")) {
-      KQMLObject pageKQML = Args.getTypedArgument(content, ":page", KQMLObject.class);
-      Page page = Page.fromKQML(pageKQML);
-      List<Region> regions = page.detectTableRegions();
+      KQMLObject pageKQML = Args.getTypedArgument(content, ":page", KQMLObject.class, null);
+      KQMLObject regionKQML = Args.getTypedArgument(content, ":region", KQMLObject.class, null);
+      if (pageKQML == null && regionKQML == null)
+	throw new InvalidArgumentCombo("you must specify either :page or :region");
+      Page page;
+      Region within = null;
+      if (regionKQML == null) {
+	page = Page.fromKQML(pageKQML);
+      } else {
+	within = Region.fromKQML(regionKQML);
+	page = within.getPage();
+	if (pageKQML != null) {
+	  Page unusedPage = Page.fromKQML(pageKQML);
+	  if (page != unusedPage)
+	    throw new InvalidArgumentCombo("both :page and :region specified, but region has different page. Use one or the other.");
+	}
+      }
+      List<Region> regions = page.detectTableRegions(within);
       KQMLList regionsKQML = new KQMLList();
       for (Region region : regions) {
 	regionsKQML.add(region.toKQML(false));
@@ -726,15 +742,33 @@ public class PDFExtractor extends StandardCWCModule implements PDFPane.Listener,
     } else if (verb.equals("find-similar-regions")) {
       KQMLPerformative targetKQML =
 	Args.getTypedArgument(content, ":region", KQMLPerformative.class);
-      Region target = Region.fromKQML(targetKQML);
-      Page page = target.getPage();
-      // don't keep the target region as a real region if we just made it and
-      // didn't look it up by ID
-      if (targetKQML.getParameter(":id") == null)
-	target.remove();
-      // order by ascending distance from target
-      Region.Order orderBy =
-        new Region.Order(new Region.Order.DistanceKey(target), true);
+      KQMLToken colorKQML =
+        Args.getTypedArgument(targetKQML, ":color", KQMLToken.class, null);
+      Region target = null;
+      Page page = null;
+      Region.Order orderBy = null;
+      if (colorKQML != null &&
+	  targetKQML.getParameter(":id") == null &&
+	  targetKQML.getParameter(":x") == null) {
+	// specified target region has only color and not ID or coords
+	// go by color
+	Color targetColor = Region.colorFromKQML(colorKQML);
+	KQMLObject pageKQML =
+	  Args.getTypedArgument(targetKQML, ":page", KQMLObject.class);
+	page = Page.fromKQML(pageKQML);
+	orderBy =
+	  new Region.Order(new Region.Order.ColorKey(targetColor), true);
+      } else { // go by coords
+	target = Region.fromKQML(targetKQML);
+	page = target.getPage();
+	// don't keep the target region as a real region if we just made it and
+	// didn't look it up by ID
+	if (targetKQML.getParameter(":id") == null)
+	  target.remove();
+	// order by ascending distance from target
+	orderBy =
+	  new Region.Order(new Region.Order.DistanceKey(target), true);
+      }
       // make a copy of the list regions on the page so we don't mess up the
       // original's order
       List<Region> origRegions = page.getRegions();
@@ -782,8 +816,8 @@ public class PDFExtractor extends StandardCWCModule implements PDFPane.Listener,
       String filename = Args.getTypedArgument(file, ":name", String.class);
       displayPDF(new File(filename), page, new WindowConfig(content));
     } else if (verb.equals("display-table")) {
-      KQMLToken tableID = Args.getTypedArgument(content, ":table", KQMLToken.class);
-      Table table = HasID.get(tableID.toString(), Table.class);
+      KQMLObject tableKQML = Args.getTypedArgument(content, ":table", KQMLObject.class);
+      Table table = Table.fromKQML(tableKQML);
       displayTable(table, new WindowConfig(content));
     } else if (verb.equals("parse-table")) {
       KQMLToken regionID = Args.getTypedArgument(content, ":region", KQMLToken.class);
@@ -888,7 +922,10 @@ public class PDFExtractor extends StandardCWCModule implements PDFPane.Listener,
       if (whatVerb.equals("rectangle")) {
 	Region region = Region.fromKQML(what);
 	region.setHighlighted(isSelect);
-	if (isSelect) region.setNew(false);
+	if (isSelect)
+	  region.setNew(false);
+	else
+	  region.remove();
       } else if (whatVerb.equals("rectangles")) {
 	KQMLObject pageKQML =
 	  Args.getTypedArgument(what, ":page", KQMLObject.class);
@@ -897,6 +934,7 @@ public class PDFExtractor extends StandardCWCModule implements PDFPane.Listener,
 	synchronized (regions) {
 	  for (Region r : regions)
 	    r.setHighlighted(isSelect);
+	    // TODO? setNew/remove like in single rectangle case
 	}
       } else if (TableSelection.verbOK(whatVerb)) {
 	TableSelection sel = TableSelection.fromKQML(what);
@@ -1155,6 +1193,20 @@ public class PDFExtractor extends StandardCWCModule implements PDFPane.Listener,
     KQMLPerformative action = new KQMLPerformative("displayed");
     action.setParameter(":what", page.toKQML());
     action.setParameter(":where", ((SwingWindowManager)windowManager).getID(window));
+    report(action);
+  }
+  
+  @Override public void pageClicked(int x, int y, Page page) {
+    KQMLPerformative action = new KQMLPerformative("clicked");
+    action.setParameter(":x", ""+x);
+    action.setParameter(":y", ""+y);
+    action.setParameter(":page", page.getID());
+    List<Region> regions = page.getRegionsAt(x, y);
+    KQMLList regionsKQML = new KQMLList();
+    for (Region r : regions) {
+      regionsKQML.add(r.toKQML(false));
+    }
+    action.setParameter(":regions", regionsKQML);
     report(action);
   }
 

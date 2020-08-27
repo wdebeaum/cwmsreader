@@ -23,11 +23,13 @@ SRCS=$(MAIN).java \
 	Region.java \
 	ResultSet.java \
 	SpanTable.java \
+	SyntheticCell.java \
 	Table.java \
 	TableEditMenu.java \
 	TableSelection.java \
 	TableSelectionListener.java \
 	TableSelectionModel.java \
+	TextChunker.java \
 	TextMatch.java \
 	VisibilityFilter.java
 
@@ -68,10 +70,12 @@ CLASSES=$(SRCS:.java=.class) \
 	PDFPane$$Listener.class \
 	Region$$1.class \
 	Region$$Coord.class \
+	Region$$NamedColor.class \
 	Region$$Order.class \
 	Region$$Order$$Key.class \
 	Region$$Order$$SimpleKey.class \
 	Region$$Order$$DistanceKey.class \
+	Region$$Order$$ColorKey.class \
 	Region$$Relation.class \
 	Region$$Source.class \
 	Table$$1.class \
@@ -103,6 +107,7 @@ CLASSES=$(SRCS:.java=.class) \
 	TableEditMenu$$SelectionEditAction.class \
 	TableEditMenu$$SplitColumnAction.class \
 	TableEditMenu$$UndoRedoAction.class \
+	TextChunker$$1.class \
 	TextMatch$$1.class \
 	TextMatch$$Searchable.class \
 	TextMatch$$Order.class \

@@ -44,8 +44,9 @@
 (define-type ont::at-loc
     :comment "prototypical locating of a FIGURE wrt a point-like GROUND"
     :parent ont::position-as-point-reln
-    :arguments ((:ESSENTIAL ONT::GROUND ((? val f::phys-obj f::abstr-obj f::situation) (f::tangible +)
-					 (f::type (? typ ont::phys-object ont::tangible-abstract-object ont::event-type))
+    :arguments ((:ESSENTIAL ONT::GROUND ((? val f::phys-obj f::abstr-obj f::situation)
+					 ;(f::tangible +)
+					 (f::type (? typ ont::phys-object ont::tangible-abstract-object ont::event-type ont::scale-value-function)) ; scale-value-function: at a level of 5
 					 (f::scale (? !t ONT::TIME-MEASURE-SCALE ONT::RATE-SCALE ONT::MONEY-SCALE ONT::NUMBER-SCALE)) ; excludes "at four"
 				       )))
     )
@@ -69,7 +70,9 @@
     :comment "FIGURE is within or inside the GROUND"
   :arguments ((:ESSENTIAL ONT::GROUND ((? val f::phys-obj f::abstr-obj) ; measure (music)
 				       (f::intentional -) (f::container +) ; containers include corner and pathway
-				       )))
+				       ))
+	      ;(:essential ont::figure (?xx (F::type (? !x ont::event-of-experience))))
+	      )
   )
 
 #|
@@ -274,7 +277,7 @@
 
 ; figure is in front of the ground
 ; in front (of), ahead (of)
-(define-type ont::front
+(define-type ont::front-of
   :parent ont::oriented-loc-reln
   :wordnet-sense-keys ("front%3:00:00")
   )
@@ -583,7 +586,7 @@
 (define-type ont::source-as-loc
     :comment "a relation that indicates where an object was in the past: the person from Italy"
  :parent ont::from
- :arguments ((:ESSENTIAL ONT::FIGURE (F::phys-obj (F::mobility F::movable)))
+ :arguments ((:ESSENTIAL ONT::FIGURE ((? type F::Situation F::phys-obj F::abstr-obj))) ;(F::phys-obj (F::mobility F::movable))) ; abstr-obj: the idea from...; situation: it is bright from the sun, I fish from the pond
 	     (:ESSENTIAL ONT::GROUND (F::phys-obj
 				      ;;(F::mobility F::movable)) ; exclude "... arrive in country X from country Y"   Can't do this as it also eliminates the usual cases, doesn't it?  JFA 7/19
 				      )))
@@ -670,7 +673,7 @@
 
 	     ; copied from to-loc
 	     (:ESSENTIAL ONT::FIGURE ((? f F::PHYS-OBJ F::abstr-obj F::situation)))    ;; need to allow situation here as it can modoify events as well as objects in RESULT expressions
-	     (:ESSENTIAL ONT::GROUND ((? t F::Phys-obj F::abstr-obj) (f::spatial-abstraction ?!sa)
+	     (:ESSENTIAL ONT::GROUND ((? t F::Phys-obj F::abstr-obj) ;(f::spatial-abstraction ?!sa) ; database doesn't have spatial-abstraction
 				     ;; (F::mobility F::movable) ; exclude "... arrive in country X from country Y"  JFA I removed the movable constraint to the figure 
 				      ) )  ; spatial-abstraction is not enough: many things have spatial-abstraction, e.g., a frog.  Another possibility is (F::object-function F::spatial-object)
 
@@ -1072,6 +1075,9 @@
 
 (define-type ont::since
     :parent ont::since-until
+    :arguments (
+             (:ESSENTIAL ONT::GROUND ((? vl F::time f::situation) (f::type (? type ONT::any-time-object ONT::EVENT-OF-CHANGE))))
+	     )
    
     )
 
@@ -1107,7 +1113,7 @@
      )
 
 (define-type ONT::in-future
-     :wordnet-sense-keys ("future%3:00:00")
+     :wordnet-sense-keys ("future%3:00:00" "prospective%3:00:00::")
      :parent ONT::event-time-wrt-now
      )
 
@@ -1122,7 +1128,7 @@
      )
 
 (define-type ont::occuring-now
-     :wordnet-sense-keys ("current%3:00:00")
+     :wordnet-sense-keys ("underway%5:00:00:current:00") ;"current%3:00:00")
      :parent ONT::event-time-wrt-now
      )
 
@@ -1235,6 +1241,7 @@
 (define-type ONT::Time-object
     :comment "objects that refer to temporal locations in some way"
     :parent ONT::ANY-TIME-OBJECT
+    :wordnet-sense-keys ("time%1:03:00" )
     :arguments ((:OPTIONAL ONT::FIGURE))
     ;:sem (F::time (F::time-scale (? sc F::point F::interval)))
     )
@@ -1292,21 +1299,6 @@
     :parent ont::time-interval
     )
 
-(define-type ONT::month
-    :comment "time interval of a named month"
-    :parent ont::time-interval
-    )
-
-(define-type ONT::week
-    :comment "time interval of a week"
-    :parent ont::time-interval
-    )
-
-(define-type ONT::day
-    :comment "time interval of a day"
-    :parent ont::time-interval
-    )
-
 
 ;; ont::time-unit has been moved under ont::measure-unit (with other units pounds, ghz, etc.)
 ;;; Covers all explicit things with date and time counting
@@ -1350,6 +1342,24 @@
 (define-type ont::date-object-in
     :comment "temporal objects that use IN - e.g., in June"
     :parent ONT::TIME-Object
+    )
+
+(define-type ONT::month
+    :comment "time interval of a named month"
+    ;:parent ont::time-interval
+    :parent ont::date-object-in ; It rained in the last two days; the meeting will convene in the next week
+    )
+
+(define-type ONT::week
+    :comment "time interval of a week"
+    ;:parent ont::time-interval
+    :parent ont::date-object-in ; It rained in the last two days; the meeting will convene in the next week
+    )
+
+(define-type ONT::day
+    :comment "time interval of a day"
+    ;:parent ont::time-interval
+    :parent ont::date-object-in ; It rained in the last two days; the meeting will convene in the next week
     )
 
 (define-type ONT::today
@@ -1405,7 +1415,7 @@
 
 (define-type ONT::year
     :parent ONT::DATE-OBJECT-IN
-    :wordnet-sense-keys ("year%1:28:00" "year%1:28:01" "year%1:28:02")
+    :wordnet-sense-keys ("year%1:28:00" "year%1:28:02");year%1:28:01
  :sem (F::time (f::time-function f::year-name))
  )
 

@@ -7,5 +7,8 @@
 (defresource (HDX HDE Humanitarian-Data-Exchange))
 (defresource (WFP WFP-GeoNode World-Food-Programme-GeoNode))
 
+;; for covid19 in domain-terms.tsv
+(defresource (NCIT NCI-Thesaurus))
+
 (require-resource-version :ont)
 (require-dsl-file #!TRIPS"src;TextTagger;cwms-mappings.lisp")

@@ -458,8 +458,12 @@ TODO: domain-specific words (such as CALO) and certain irregular forms (such as 
 (defun augment-trips-word-categories (word-categories)
   "augment the list of word categories with
       - if ADV is among the categories, include w::prep as well"
-  (when (find 'w::adv word-categories) (setq word-categories (pushnew 'w::prep word-categories)))
-  (when (find 'w::to word-categories) (setq word-categories (remove-duplicates (append '(w::adv w::prep) word-categories))))
+  (when (find 'w::adv word-categories)
+    (setq word-categories (remove-duplicates
+			   (append '(w::prep w::neg)
+				   word-categories))))
+  (when (find 'w::to word-categories)
+    (setq word-categories (remove-duplicates (append '(w::adv w::prep) word-categories))))
   word-categories)
 
 (defun filter-by-pos (wdef w pos-list penn-tags)
@@ -552,9 +556,15 @@ TODO: domain-specific words (such as CALO) and certain irregular forms (such as 
   (let ((pos (or (penn-tag-to-trips-pos pos) pos))
         (d (get-lf-and-pos definition)))
   (and
-    (or (null ont-type) (eq (car d) ont-type)
-      (and (not (eq *use-tagged-senses-only* 'strict)) (om::subtype (car d) ont-type)))
-    (or (null pos) (eq (cadr d) pos)))))
+   (or (null ont-type)
+       (member ont-type '(ONT::ANY-SEM ONT::REFERENTIAL-SEM ONT::SITUATION-ROOT ONT::PROPERTY-VAL ONT::MODIFIER ONT::PREDICATE))
+       (eq (car d) ont-type)
+       (and (not (eq *use-tagged-senses-only* 'strict))
+	    (or (om::subtype (car d) ont-type) (om::subtype ont-type (car d)) )))
+   (or (null pos)
+       (if (eq pos 'W::ADV)
+	   (if (member (cadr d) '(W::ADV W::NEG)) T)
+	   (eq (cadr d) pos))))))
 
 (defun check-definition-list (definition tests)
   (cond ((not tests) nil)
@@ -765,8 +775,9 @@ TODO: domain-specific words (such as CALO) and certain irregular forms (such as 
     )))
 
 (defun find-preferences-for-stem (word preferences is-stem)
-  (let ((explicit-preferences (mapcar #'cdr (remove-if-not  #'(lambda (x)
-								 (eq (car x) word))
+  (let* ((newword (make-into-symbol word)) ; word might be a list (multi-word or, e.g., (W::NF 1)).  Make this into a symbol because the lex (probably where (car x) came from) has been converted into a symbol 
+	 (explicit-preferences (mapcar #'cdr (remove-if-not  #'(lambda (x)
+								 (eq (car x) newword)) 
 							     preferences))))
     (append explicit-preferences
 	    (when (not is-stem)  ;; find the generic ONT preferences only on the main word
@@ -787,7 +798,12 @@ TODO: domain-specific words (such as CALO) and certain irregular forms (such as 
 (defun filter-by-senses (wdef w trips-defs trips-pos-list penn-tags ont-types wn-sense-keys domain-info &key tagged-senses-only)
   "filter the word definitions to return only senses corresponding to the sense classes in the list. If no such sense exists, a default sense is created on the fly using the available sense and pos information, or defaults if missing"
   (let* ((orig-pos-list  (merge-pos-info trips-pos-list penn-tags))
-	 (pos-list (subst 'w::N 'w::name orig-pos-list));; map NAME to N as they are treated equivalently
+	 (pos-list-noname (subst 'w::N 'w::name orig-pos-list));; map NAME to N as they are treated equivalently
+	 ;; also ADV class can include NEG and PREP
+	 (pos-list (if (member 'W::ADV pos-list-noname)
+		       (remove-duplicates (append '(W::prep w::neg)
+						  pos-list-noname))
+		       pos-list-noname))
 	 (tagged-senses ont-types)
 	 (tagged-senses-remaining tagged-senses)
 	 (compatible-defs nil)
@@ -1077,7 +1093,7 @@ TODO: domain-specific words (such as CALO) and certain irregular forms (such as 
     ; combine new or default senses from external sources w/ existing trips senses
     (print-debug "~%After processing RES=~S ~%     WDEF=~S" res wdef)
     (setq res (append res wdef))
-    (if (and provided-senses *use-tagged-senses-only*)
+    (if (and (eq parser::*in-system* :gloss) provided-senses *use-tagged-senses-only*) ; only do this for gloss
       ;; RIK: remove the incompatible senses
       (setq res (filter-by-definition-check res provided-senses))
       )
@@ -1289,7 +1305,7 @@ TODO: domain-specific words (such as CALO) and certain irregular forms (such as 
  @visibility public
  "
  (let* ((trips-pos-list (find-arg keylist :trips-parts-of-speech))
-	(wn-sense-keys (truncate-list (when (and wf::*use-wordfinder* (not (exclude-from-lookup w nil nil)))
+	(wn-sense-keys (truncate-list (when (and wf::*use-wordfinder* ) ;(not (exclude-from-lookup w nil nil))) ; if the wn-sense-key is explicitly named, we should look it up even if it is a frequent word
 					(remove-if #'wf::stoplist-p
 						   (find-arg keylist :wn-sense-keys))
 					)
@@ -1313,7 +1329,7 @@ TODO: domain-specific words (such as CALO) and certain irregular forms (such as 
 	(this-trips-pos-list (if (listp w) (trips-pos-list-for-word wdef :include-multiwords t) (trips-pos-list-for-word wdef :include-multiwords nil)))
 	(this-trips-sense-list (get-lf w :wdef wdef))
 	(wf-wdef (when (and *use-wordfinder*
-			    (not (exclude-from-lookup w this-trips-pos-list penn-tags)))
+			    (or (not (exclude-from-lookup w this-trips-pos-list penn-tags)) wn-sense-keys))
 		   ;;(format t "~%~%HERE!!! with  ~S and ~S"  wf-poslist this-trips-pos-list)
 		   (if wdef  ;;  there are TRIPS entries for the word
 		      (if *use-trips-and-wf-senses*   ;; check if we should get the WN defs anyway
@@ -1330,7 +1346,7 @@ TODO: domain-specific words (such as CALO) and certain irregular forms (such as 
 			    ;; so try again using default pos list and no sense tags, in case of bad tagging
 			    (if (not wdef)
 				(get-unknown-word-def w :pos-list *default-wf-poslist* :penntag penn-tags :score score)
-				(if (and *use-trips-and-wf-senses* (not (exclude-from-lookup w this-trips-pos-list penn-tags)))
+				(if (and *use-trips-and-wf-senses* (or (not (exclude-from-lookup w this-trips-pos-list penn-tags)) wn-sense-keys))
 				    (get-unknown-word-def w :pos-list (or (set-difference *default-wf-poslist* this-trips-pos-list) *default-wf-poslist*) :penntag penn-tags :score score)))))
 	;; still no WDEF or WN senses!  try alternate spellings
 	(backup-from-alternates (if (and *use-wordfinder* alternate-spellings merged-trips-wn-pos-list (null wf-wdef) (null backup-wf-wdef))

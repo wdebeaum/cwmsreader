@@ -1,0 +1,47 @@
+# Makefile-cwmsreader
+#
+# Time-stamp: <Mon Jun 22 15:59:34 CDT 2020 lgalescu>
+#
+# Author: Lucian Galescu <lgalescu@ihmc.us>, 14 Oct 2015
+#
+
+LIBS = \
+	KQML \
+	TripsModule \
+	trlib \
+	util \
+	util/cwc \
+	defcomponent \
+	AKRL \
+	WordNetSQL
+
+LISP_MODULES = \
+	Comm \
+	Logging \
+	OntologyManager \
+	LexiconManager \
+	Parser \
+	Wordfinder \
+	NewIM \
+	PDFLearn
+
+LISP_PROGRAMS = \
+	Systems/cwmsreader
+
+JAVA_PROGRAMS = \
+	Facilitator \
+	DrumGUI
+
+# DrumGUI and Data are for cwmsreader
+DATA = \
+	Data
+
+OTHER_PROGRAMS = \
+	Graphviz \
+	TextPP \
+	TextTagger \
+	EKB \
+	Tools \
+	GraphMatcher 
+
+include Makefile-common

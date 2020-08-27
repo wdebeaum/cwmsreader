@@ -1,7 +1,7 @@
 /*
  * DrumGUI.java
  *
- * $Id: DrumGUI.java,v 1.94 2019/12/26 17:49:12 lgalescu Exp $
+ * $Id: DrumGUI.java,v 1.97 2020/05/14 13:58:19 lgalescu Exp $
  *
  * Author: Lucian Galescu <lgalescu@ihmc.us>,  8 Feb 2010
  */
@@ -2035,19 +2035,19 @@ public class DrumGUI extends StandardTripsModule {
     /**
      * Document normalization.
      * <p>
-     * For the moment, this just means replaces control characters that are not valid
+     * For the moment, this function replaces control characters that are not valid
      * XML characters with whitespace (space or newline). Replacement is done character-for-character so that character
-     * positions are not affected by this transformation of the input.
+     * positions are not affected by this transformation of the input. 
      */
     private void normalizeDocument() {
         currentInputData = currentInputData
-                .replace("\u0003", "\n")    // ^C, ETX
-                .replace("\u0005", "\n")    // ^E, ENQ
-                .replace("\u000C", "\n")    // ^L, FORM-FEED (FF)
-                .replace("\u0010", "\n")    // ^P, DLE
-                .replace("\u0015", "\n")    // ^U, NAK
-                .replace("\u00A0", " ")     // NO-BREAK SPACE
-                .replaceAll("[\\p{Cc}&&[^\\p{Space}]]", " ");     // all other control chars
+                .replace('\u0003', '\n')    // ^C, ETX
+                .replace('\u0005', '\n')    // ^E, ENQ
+                .replace('\u000C', '\n')    // ^L, FORM-FEED (FF)
+                .replace('\u0010', '\n')    // ^P, DLE
+                .replace('\u0015', '\n')    // ^U, NAK
+                .replaceAll("\\p{Zs}", " ") // all space separators
+                .replaceAll("[\\p{Cc}&&[^\\p{Space}]]", " ");// all other control chars
     }
 
     /**
@@ -2055,6 +2055,7 @@ public class DrumGUI extends StandardTripsModule {
      * as too consecutive line terminators, potentially preceded by whitespace.
      * <p>
      * Note: All separators are skipped.
+     * <p> TODO: handle unicode separators
      * 
      * @see #fragments
      */

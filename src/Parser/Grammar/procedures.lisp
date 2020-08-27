@@ -167,10 +167,12 @@
   "succeeds only if the two constits are both non null"
   (let ((subcat (get-fvalue args 'w::subcat))
 	(subcat2  (get-fvalue args 'w::subcat2)))
-    (if (and (non-null-constit subcat) (non-null-constit subcat2))
+    (if ;(and (non-null-constit subcat) (non-null-constit subcat2))
+	(and (check-if-bound subcat) (check-if-bound subcat2))
 	*success*
 	)))
 
+#|
 (defun non-null-constit (x)
   (cond ((var-p x)
 	 (if (constit-p (var-values x))
@@ -179,7 +181,7 @@
 			(eq var '-))))
 	     nil))
 	(t (format t "~% SUBCAT is not a var: ~S" x))))
-		  
+|#		  
 		   
 (define-predicate 'w::combine-foot-features
   #'(lambda (args)
@@ -556,7 +558,23 @@
 	 )))
       (match-vals nil new newfeats))
     ))
-        
+
+(define-predicate 'W::fix-gap-for-optional
+    #'(lambda (args)
+	(fix-gap args))
+  )
+
+(defun fix-gap (args)
+  "This checks whether variable KEY is bound, and sets GAP to - if not.
+     We need this to handle optional constituents better"
+  (let ((gap (second (assoc 'w::gap args)))
+	(key (second (assoc 'W::key args))))
+    (if (var-p gap)
+	(if (check-if-bound key)
+	    *success*
+	    (match-vals nil gap '-))
+	*success*)
+    ))
 
 (defun copy-sem-array (arr)
   (let ((new (make-array *sem-size* :initial-element *default-sem-variable*)))
@@ -927,3 +945,16 @@
       )
 )))
 
+(define-predicate 'w::add-status
+    #'(lambda (args)
+	(add-status args))
+  )
+
+(defun add-status (args)
+  "pass on status if it is instantiated; otherwise make it a variable"
+  (let ((in1 (second (assoc 'w::in1 args)))
+	(out (second (assoc 'w::out args)))
+	)
+    (if (eq in1 '-) (match-vals nil out (make-var :name (gen-symbol 'status)))
+      (match-vals nil out in1))
+    ))

@@ -370,7 +370,7 @@
   lemma ; base-form word
   pos ; TRIPS W:: pos symbol
   ont-type ; TRIPS ONT:: type symbol
-  template ; TRIPS template name
+  template ; TRIPS template name and args
   nom-of ; word this def is a nominalization of (or nil)
   def-list ; original list form of the def from get-word-def
   (synset nil) ; wf::wordnet-synset (or nil if not from WordNet)
@@ -661,10 +661,10 @@
 					    ;; get examples and template args
 					    (weblex::get-sense-source
 						(word-dw lemma)
-						pos ont-type template)
+						pos ont-type (car template))
 					    ;; failing that, make our own
 					    `((weblex::lf-parent ,ont-type)
-					      (weblex::templ ,template)))
+					      (weblex::templ ,@template)))
 					nil)))))
 			    into xmls
 			    finally (return 
@@ -1078,7 +1078,7 @@ $(document).ready(function(){
 			   ,@(mapcan
 			       (lambda (template)
 				 `(((lf-parent ,new-ont-type)
-				    (templ ,template))))
+				    (templ ,@template))))
 			       templates)
 			   )))))
 	     )

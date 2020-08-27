@@ -177,6 +177,7 @@ public class VisibilityFilter extends PageDrawer {
 
   // see TextStripper::isPrintable
   static boolean isPrintable(String s) {
+    if (s == null) return false;
     for (int i = 0; i < s.length(); i++) {
       Character c = s.charAt(i);
       if (isPrintable(c))

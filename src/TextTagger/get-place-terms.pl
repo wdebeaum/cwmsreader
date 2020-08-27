@@ -21,7 +21,7 @@ my $id = $F[$idCol];
 chomp $id;
 next if ($id =~ /^\s*$/);
 $id =~ s/[^\w\.-]/_/g;
-$id = "_$id" if ($id =~ /^[\d-]/);
+$id = "P$id" if ($id =~ /^[\d-]/);
 $id = $pkg . '::' . $id;
 my @prevLexes = ();
 for my $col (@cols) {

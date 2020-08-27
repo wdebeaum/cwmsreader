@@ -1,7 +1,7 @@
 ;;;;
 ;;;; robust.lisp
 ;;;;
-;;;; Time-stamp: <Wed Nov 13 12:42:03 EST 2019 james>
+;;;; Time-stamp: <Tue Jun  9 16:03:02 EDT 2020 james>
 ;;;;
 
 (in-package :W)
@@ -15,7 +15,16 @@
      (definition  vform neg sem subjvar dobjvar lex headcat)
     (utt sem setting subjvar dobjvar lex headcat))
     
-    ;; CP with no GAP to have a dream
+    ;; CP with no GAP for NOROLE verbs (e.g., raining)
+    ((definition (var ?v)  (lf ?lf))
+      -defn-no-gap-norole> .98
+     (head (cp (var ?v) (lf ?lf) (subj-map ONT::NOROLE) (ctype (? x w::s-to)) ;; make sure there's a subj-map (avoid parses for "there is" etc)
+	       (subj (% ?xx (sem ?subjsem)))
+      (subjvar (% *PRO* (var *) (class ont::ROLE-REF) (sem ?subjsem) (constraint (& (:context-rel :lsubj)))))
+      (gap -)
+      )))
+
+     ;; CP with no GAP to have a dream
     ((definition (var ?v)  (lf ?lf))
       -defn-no-gap> .985
      (head (cp (var ?v) (lf ?lf) (subj-map (? !s ONT::NOROLE)) (ctype (? x w::s-to)) ;; make sure there's a subj-map (avoid parses for "there is" etc)
@@ -209,25 +218,12 @@
 		(SUBCAT -)
 		(transform ?transform)
 		))
-      (prep (lex ?ptp))
+      ;(prep (lex ?ptp))
+      (prep (lex (? ptp w::of)))
       (add-to-conjunct  (val (:figure ?gapvar)) (old ?con) (new ?new))
       )
 
-   #|| ;;  prescription rules
-     ((NP (SORT PRED)
-         (var ?v) (Class (:* ONT::PHARMACOLOGIC-SUBSTANCE ?lex)) (sem ?sem) (agr ?agr) (case (? cas sub obj -))
-         (LF (% Description (Status Name) (var ?v) (Sort Individual)
-                (class (:* ONT::PHARMACOLOGIC-SUBSTANCE ?lex)) (lex ?l) (sem ?sem)  ;; LEX used to be ?fname, but this isn't used any more  JFA 5/04
-                (transform ?transform)
-		(constraint (& (:amount ?val)))
-                ))
-         (mass mass) (time-converted -)
-	 (postadvbl ?gen) ;; swift -- setting postadvl to gen as part of eliminating gname rule but still allowing e.g. truck 1
-         )
-     -np-presciption>
-     (head (name (lex ?l) (sem ?sem) (var ?v) (agr ?agr) (lf (:* ONT::PHARMACOLOGIC-SUBSTANCE ?lex))
-		 ))
-     (adjp (sort w::unit-measure) (arg ?v) (lf (% prop (constraint (& (val ?val)))))))||#
+    
      ))
 
 ;; From np-grammar.lisp

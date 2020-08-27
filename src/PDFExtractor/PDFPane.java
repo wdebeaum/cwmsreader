@@ -28,6 +28,7 @@ public class PDFPane extends JComponent implements KeyListener, MouseInputListen
   PDFRenderer renderer;
   final int numPages;
   int pageIndex;
+  boolean isDragging;
   Region currentRegion;
   EnumSet<Region.Coord> currentHandle;
   HashSet<Listener> listeners;
@@ -176,6 +177,7 @@ public class PDFPane extends JComponent implements KeyListener, MouseInputListen
 
   @Override public void mousePressed(MouseEvent evt) {
     if (evt.getButton() == MouseEvent.BUTTON1) {
+      isDragging = false;
       int x = evt.getX(), y = evt.getY();
       Page page = getPage();
       currentRegion = page.getRegionAt(x,y);
@@ -195,12 +197,15 @@ public class PDFPane extends JComponent implements KeyListener, MouseInputListen
 	currentRegion.setNew(false);
       } else { // degenerate selection, forget it
 	currentRegion.remove();
+	if (!isDragging) // we weren't dragging, report a click
+	  emitPageClicked(evt.getX(), evt.getY());
       }
       currentRegion = null;
     }
   }
 
   @Override public void mouseDragged(MouseEvent evt) {
+    isDragging = true;
     if (currentRegion != null) {
       currentRegion.setCoords(currentHandle, evt.getX(), evt.getY());
       evt.getComponent().repaint();
@@ -285,6 +290,7 @@ public class PDFPane extends JComponent implements KeyListener, MouseInputListen
    */
   public interface Listener {
     void pageDisplayed(Page page, JFrame window);
+    void pageClicked(int x, int y, Page page);
   }
 
   public void addPDFPaneListener(Listener l) { listeners.add(l); }
@@ -292,9 +298,19 @@ public class PDFPane extends JComponent implements KeyListener, MouseInputListen
   public void emitPageDisplayed() {
     Page page = getPage();
     JFrame window = (JFrame)getTopLevelAncestor();
-    // TODO re-pack window for different-size pages?
+    // re-pack window (if it's there yet) for different-size pages
+    if (window != null)
+      window.pack();
     for (Listener l : listeners) {
       l.pageDisplayed(page, window);
+    }
+  }
+
+  public void emitPageClicked(int x, int y) {
+    Page page = getPage();
+    JFrame window = (JFrame)getTopLevelAncestor();
+    for (Listener l : listeners) {
+      l.pageClicked(x, y, page);
     }
   }
 }

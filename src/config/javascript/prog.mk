@@ -2,7 +2,7 @@
 # config/javascript/prog.mk
 #
 # William de Beaumont, wbeaumont@ihmc.us, 2015-04-03
-# $Id: prog.mk,v 1.1 2015/04/03 15:46:07 wdebeaum Exp $
+# $Id: prog.mk,v 1.2 2020/03/09 19:05:57 wdebeaum Exp $
 #
 # The following should be defined before this file is included:
 #  MODULE - The name of this TRIPS module
@@ -35,5 +35,5 @@ clean::
 	rm -f $(PROG)
 
 run::
-	NODE_PATH=..:$(etcdir) $(NODE) $(MAIN) $(ARGV)
+	NODE_PATH=.:..:$(etcdir):$(etcdir)/node_modules $(NODE) $(MAIN) $(ARGV)
 

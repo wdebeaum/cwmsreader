@@ -37,6 +37,7 @@ import TRIPS.util.cwc.InvalidArgument;
 
 /** One page of a PDF {@link Document}. */
 public class Page implements HasID, TextMatch.Searchable {
+  final static boolean USE_TEXT_CHUNKER = true; // use new TextChunker instead of Tabula's mergeWords (experimental)
   final String id;
   @Override public String getID() { return id; }
   final PDPage pdPage;
@@ -44,7 +45,7 @@ public class Page implements HasID, TextMatch.Searchable {
   final int pageIndex;
   List<Region> regions;
   HashSet<Listener> listeners;
-  boolean detectedTableRegions;
+  boolean detectedTableRegions; // detected for the whole page, anyway
   boolean detectedParagraphRegions;
   boolean detectedRulingRegions;
 
@@ -60,7 +61,18 @@ public class Page implements HasID, TextMatch.Searchable {
     detectedRulingRegions = false;
   }
 
-  public PDRectangle getPDBBox() { return pdPage.getBBox(); }
+  //public PDRectangle getPDBBox() { return pdPage.getBBox(); }
+  public PDRectangle getPDBBox() {
+    // using the actual .getBBox() bounding box from PDFBox is problematic,
+    // because both Tabula and the renderer subtract the min X/Y coordinates,
+    // and the renderer uses the crop box instead of the "b" box
+    PDRectangle cropBoxWithOffset = pdPage.getCropBox();
+    // make a new version of the bounding box with the offset discarded
+    return new PDRectangle(
+      cropBoxWithOffset.getWidth(),
+      cropBoxWithOffset.getHeight()
+    );
+  }
 
   public PDPage getPDPage() { return pdPage; }
 
@@ -79,6 +91,20 @@ public class Page implements HasID, TextMatch.Searchable {
       for (Region r : regions) {
 	if (r.isHighlighted() && !r.getHandleAt((double)x, (double)y).isEmpty())
 	  ret = r;
+      }
+    }
+    return ret;
+  }
+
+  /** Get a list of highlighted regions containing pixel (x,y) (not just
+   * handles).
+   */
+  public List<Region> getRegionsAt(int x, int y) {
+    List<Region> ret = new LinkedList<Region>();
+    synchronized (regions) {
+      for (Region r : regions) {
+	if (r.isHighlighted() && r.contains(x, y))
+	  ret.add(r);
       }
     }
     return ret;
@@ -106,9 +132,14 @@ public class Page implements HasID, TextMatch.Searchable {
     return tabulaPage;
   }
 
-  public List<Region> detectTableRegions() throws IOException {
-    if (detectedTableRegions) { // already did it
+  /** Return a list of regions detected as possible tables on this page. If
+   * within!=null, detect tables only within that region.
+   */
+  public List<Region> detectTableRegions(Region within) throws IOException {
+    if (within == null && detectedTableRegions) { // already did it
       // just get the regions whose source is TABLE
+      // FIXME? this will also get tables that were detected previously with
+      // within!=null... do we care? is that actually the right thing?
       List<Region> ret = new LinkedList<Region>();
       synchronized (regions) {
 	for (Region r : regions)
@@ -128,6 +159,10 @@ public class Page implements HasID, TextMatch.Searchable {
       VisibilityFilter.removeInvisibleTextElements(docCopy, 0, tabulaPage);
     // instead of just this:
     //technology.tabula.Page tabulaPage = toTabulaPage();
+    // if within was given, get the tabula "Page" that is just the part of the
+    // page within that rectangle
+    if (within != null)
+      tabulaPage = tabulaPage.getArea(within.rect);
     // now we can call detect()
     List<Rectangle> rects = new NurminenDetectionAlgorithm().detect(tabulaPage);
     // and wrap the results in our Region objects
@@ -138,8 +173,13 @@ public class Page implements HasID, TextMatch.Searchable {
       regs.add(new Region(clampedRect, this, Region.Source.TABLE));
     }
     docCopy.close(); // close the duplicate document so PDFBox doesn't complain
-    detectedTableRegions = true;
+    if (within == null)
+      detectedTableRegions = true;
     return regs;
+  }
+
+  public List<Region> detectTableRegions() throws IOException {
+    return detectTableRegions(null);
   }
 
   /** Could str be used to mark a list item (like a bullet point)? */
@@ -232,7 +272,7 @@ public class Page implements HasID, TextMatch.Searchable {
 
   /** Sometimes Tabula's TextElement.mergeWords() erroneously makes TextChunks
    * with large horizontal gaps; this splits them. Often this is caused by a
-   * supserscript that extends slightly above the rest of the line, which gets
+   * superscript that extends slightly above the rest of the line, which gets
    * attached to a line from another column, so we detect that here too and try
    * to attach it in a more reasonable place.
    */
@@ -258,10 +298,15 @@ public class Page implements HasID, TextMatch.Searchable {
 	  end = width - 1;
 	}
 	for (int i = start; i <= end; i++) covered[i] = true;
-	int wos = (int)e.getWidthOfSpace();
+	int wos = (int)Math.round(e.getWidthOfSpace());
 	if (wos > minGapWidth) minGapWidth = wos;
       }
-      if (minGapWidth == 0) throw new RuntimeException("WTF");
+      if (minGapWidth == 0) {
+	//throw new RuntimeException("WTF");
+	System.err.println("WARNING: chunk has no elements with wos>=0.5; setting minGapWidth=1");
+	System.err.println(c.toString());
+	minGapWidth = 1;
+      }
       // look for gaps in that coverage
       List<Double> gapStarts = new LinkedList<Double>();
       int lastCovered = -1;
@@ -360,12 +405,21 @@ public class Page implements HasID, TextMatch.Searchable {
       VisibilityFilter.removeInvisibleTextElements(docCopy, 0, tabulaPage);
     // get the individual-character text elements from that
     List<TextElement> textElements = tabulaPage.getText();
-    // merge those into contiguous lines (not words as the method name suggests)
-    List<TextChunk> textChunks = TextElement.mergeWords(textElements);
-    // ...but not into lines spanning the whole width of the page
-    //List<Line> lines = TextChunk.groupByLines(textChunks);
-    textChunks = splitBogusTextChunks(textChunks);
-    textChunks.sort(new ParagraphLineComparator());
+    List<TextChunk> textChunks;
+    if (USE_TEXT_CHUNKER) {
+      // merge those into contiguous lines
+      textChunks = TextChunker.chunk(textElements);
+    } else {
+      // merge those into contiguous lines (not words as the method name
+      // suggests)
+      textChunks = TextElement.mergeWords(textElements);
+      // ...but not into lines spanning the whole width of the page
+      //List<Line> lines = TextChunk.groupByLines(textChunks);
+      // mergeWords sometimes makes lines with big gaps; split them
+      textChunks = splitBogusTextChunks(textChunks);
+      // the above can upset the order of chunks, so sort them again
+      textChunks.sort(new ParagraphLineComparator());
+    }
     
     // map from x coordinate to the lines of the paragraph left-aligned at that
     // x coordinate, which we have not yet finished collecting
@@ -399,7 +453,7 @@ public class Page implements HasID, TextMatch.Searchable {
 	int pBottom = (int)prevLine.getBottom();
 	int pHeight = (int)prevLine.getHeight();
 	int pSpaceWidth = prevParagraph.getWidthOfSpace();
-	int twiceAvgHeight = cHeight + pHeight;
+	int twiceAvgHeight = (int)((cHeight + pHeight) * (2.5 / 2.0)); // I lied
 	int vSep = cTop - pBottom;
 	if (debugDPR) System.err.println(" paragraph l="+pLeft+";r="+pRight+";b="+pBottom+";h="+pHeight+";sw="+pSpaceWidth+";2ah="+twiceAvgHeight+";vSep="+vSep);
 	if (vSep >= twiceAvgHeight) { // paragraph-breaking whitespace
@@ -533,7 +587,7 @@ public class Page implements HasID, TextMatch.Searchable {
   public static Page fromKQML(KQMLObject listOrID) throws CWCException, KQMLBadPerformativeException {
     if (listOrID instanceof KQMLList) {
       return fromKQML(new KQMLPerformative((KQMLList)listOrID));
-    } else if (listOrID instanceof KQMLList) {
+    } else if (listOrID instanceof KQMLPerformative) {
       KQMLPerformative perf = (KQMLPerformative)listOrID;
       KQMLToken idKQML =
 	Args.getTypedArgument(perf, ":id", KQMLToken.class, new KQMLToken("nil"));

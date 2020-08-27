@@ -64,7 +64,8 @@
   ((W::IN W::NEED)
    (SENSES
     (;(LF-PARENT ONT::physical-reaction)
-     (LF-PARENT ONT::desirous)
+     ;(LF-PARENT ONT::desirous)
+     (LF-PARENT ONT::inadequate)
      (TEMPL postpositive-ADJ-experiencer-theme-TEMPL (XP (% W::PP (W::Ptype W::of))))
      (example "I am in need of entertainment")
      )
@@ -312,7 +313,8 @@
    (SENSES
     ((LF-PARENT ONT::CHOICE-OPTION)
      (LF-FORM W::INSTEAD-OF)
-     (TEMPL binary-constraint-S-templ)
+     ;(TEMPL binary-constraint-S-templ)
+     (TEMPL binary-constraint-NP-templ)
      )
     ((LF-PARENT ONT::CHOICE-OPTION)
      (LF-FORM W::INSTEAD-OF)
@@ -327,7 +329,7 @@
   :words (
 	  ((w::in W::front)
 	   (SENSES
-	    ((LF-PARENT ONT::front)
+	    ((LF-PARENT ONT::front-of)
 	     (TEMPL BINARY-CONSTRAINT-S-OR-NP-TEMPL  (xp (% w::pp (w::ptype (? pt w::of)))))
 	     (SYNTAX (W::ALLOW-DELETED-COMP +))
 	     (EXAMPLE "there is a crater in front of me")
@@ -380,7 +382,22 @@
      )
     )
    ) 
-))
+   ))
+
+(define-words :pos W::ADV
+  :words (
+	  ((w::in W::reply)
+	   (SENSES
+	    ((LF-PARENT ONT::manner)
+	     (LF-FORM W::IN-REPLY)
+	     (TEMPL BINARY-CONSTRAINT-S-OR-NP-TEMPL  (xp (% w::pp (w::ptype (? pt w::to)))))
+	     (SYNTAX (W::ALLOW-DELETED-COMP +))
+	     (EXAMPLE "In reply to the query")
+	     (meta-data :origin joust :entry-date 20091026 :change-date nil :comments nil)
+	     )
+	    )
+	   ) 
+	  ))
 
 (define-words :pos W::ADV
  :words (
@@ -510,31 +527,33 @@
      (templ binary-constraint-S-templ (xp (% w::ADJP (w::var ?var) (w::sem ?sem) (w::set-modifier -))))
      (preference 0.9)
      )
-
+    #|
     ((lf-parent ont::purpose)
-     (example "in reply")
-     (templ binary-constraint-S-templ)
-     (preference 0.98) ; prefer in-loc
-     )
+    (example "in reply")
+    (templ binary-constraint-S-templ)
+    (preference 0.98) ; prefer in-loc
+    )|#
     
     ;; in the air (excluded by ont::spatial-loc)
     ;; It increased in temperature
     ((LF-PARENT ONT::in-scale)
+     (example "it increased in temperature")
      (TEMPL BINARY-CONSTRAINT-S-OR-NP-TEMPL)
      ;(preference 0.98)
      )
      )
-   )
-  ))
+    )
+   ))
+ 
 
 (define-words :pos W::adj :templ CENTRAL-ADJ-TEMPL
 		  :words (
 			  ((w::in w::danger)
 			   (SENSES
 			    ((meta-data :origin calo :entry-date 20031223 :change-date nil :wn ("likely%5:00:00:prospective:00") :comments html-purchasing-corpus)
-			     (EXAMPLE "He is a likely candidate")
+			     (EXAMPLE "The candidate is in danger")
 			     (lf-parent ont::at-risk-val)
-			     (SEM (F::GRADABILITY F::+))
+			     (SEM (F::GRADABILITY +))
 			     (TEMPL central-adj-xp-TEMPL (XP (% W::pp (W::ptype W::of))))
 			     )))))
 

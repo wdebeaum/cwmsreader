@@ -56,8 +56,14 @@ public class Table extends AbstractTableModel implements HasID, TextMatch.Search
   /** Nontrivial Rulings in cell coordinates. */
   List<Ruling> rulings;
   // edit history
-  /** The region that was originally selected for the whole table. */
+  /** The region that was originally selected for the whole table. This is null
+   * if the table isn't from Tabula (see originRows).
+   */
   Region origin;
+  /** The data that was originally used to construct this table. This is null
+   * if origin isn't.
+   */
+  List<List<RectangularTextContainer>> originRows;
   /** The column boundaries actually used by Tabula. This includes both
    * automatic and manual boundaries between columns. Edits other than
    * SplitColumn don't affect this (e.g. MergeColumns doesn't delete entries).
@@ -83,6 +89,7 @@ public class Table extends AbstractTableModel implements HasID, TextMatch.Search
 
   public Table(technology.tabula.Table tabulaTable, Region origin) {
     this.origin = origin;
+    originRows = null;
     splitColumns = new LinkedList<SplitColumn>();
     history = new LinkedList<Edit>();
     undoHistory = new LinkedList<Edit>();
@@ -101,6 +108,19 @@ public class Table extends AbstractTableModel implements HasID, TextMatch.Search
 
   public Table(Region origin) {
     this(extractTabulaTable(origin), origin);
+  }
+
+  public Table(List<List<RectangularTextContainer>> originRows) {
+    this.originRows = originRows;
+    origin = null;
+    resetRowsToOrigin();
+    splitColumns = new LinkedList<SplitColumn>();
+    history = new LinkedList<Edit>();
+    undoHistory = new LinkedList<Edit>();
+    redoHistory = new LinkedList<Edit>();
+    rulings = new ArrayList<Ruling>();
+    colBoundXs = null;
+    this.id = HasID.getNextIDAndPut(this);
   }
 
   @Override public int getRowCount() { return numRows; }
@@ -155,6 +175,55 @@ public class Table extends AbstractTableModel implements HasID, TextMatch.Search
 	Integer.toString((int)ruling.getEnd()));
     }
     return rulingKQML;
+  }
+
+  public static Table fromKQML(KQMLObject listOrID) throws CWCException, KQMLBadPerformativeException {
+    if (listOrID instanceof KQMLList) {
+      return fromKQML(new KQMLPerformative((KQMLList)listOrID));
+    } else if (listOrID instanceof KQMLPerformative) {
+      KQMLPerformative perf = (KQMLPerformative)listOrID;
+      KQMLToken idKQML =
+        Args.getTypedArgument(perf, ":id", KQMLToken.class, new KQMLToken("nil"));
+      String id = idKQML.toString().toLowerCase();
+      if (id.equals("nil")) { // have no ID, make a new table
+	KQMLList dataKQML =
+	  Args.getTypedArgument(perf, ":data", KQMLList.class);
+	// TODO? rulings
+	int numRows = dataKQML.size();
+	if (numRows == 0)
+	  throw new InvalidArgument(perf, ":data", "nonempty list of rows");
+	KQMLObject firstRowObj = dataKQML.get(0);
+	if (!(firstRowObj instanceof KQMLList))
+	  throw new InvalidArgument(perf, ":data", "list of lists of cells");
+	int numCols = ((KQMLList)dataKQML.get(0)).size();
+	if (numCols == 0)
+	  throw new InvalidArgument(perf, ":data", "nonempty first row");
+	List<List<RectangularTextContainer>> rows =
+	  new ArrayList<List<RectangularTextContainer>>(numRows);
+	for (int i = 0; i < numRows; i++) {
+	  KQMLObject rowObj = dataKQML.get(i);
+	  if (!(rowObj instanceof KQMLList))
+	    throw new InvalidArgument(perf, ":data", "list of lists of cells");
+	  KQMLList rowList = (KQMLList)rowObj;
+	  if (numCols != rowList.size())
+	    throw new InvalidArgument(perf, ":data", "same number of columns in each row");
+	  List<RectangularTextContainer> row = new ArrayList<RectangularTextContainer>(numCols);
+	  for (int j = 0; j < numCols; j++) {
+	    KQMLObject cellObj = rowList.get(j);
+	    Cell cell = new SyntheticCell(i, j, cellObj.stringValue());
+	    row.add(cell);
+	  }
+	  rows.add(row);
+	}
+	return new Table(rows);
+      } else { // have ID, just get the existing object
+	return HasID.get(id, Table.class);
+      }
+    } else if (listOrID instanceof KQMLToken) {
+      return HasID.get(listOrID.toString(), Table.class);
+    } else {
+      throw new InvalidArgument("nil", ":table", "list or id", listOrID);
+    }
   }
 
   @Override
@@ -889,9 +958,10 @@ public class Table extends AbstractTableModel implements HasID, TextMatch.Search
     out.endTable();
     out.script(annotationTemplateJS);
     String meta =
+      (origin == null ? "" : (
       "<link rel=\"original-document\" type=\"application/pdf\" href=\"file://" + origin.getPage().getDocument().getPDFFile().getAbsolutePath() + "\">\n" +
       "<meta name=\"first-page-index\" content=\"" + origin.getPage().getPageIndex() + "\">\n" +
-      "<meta name=\"first-region-bbox\" content=\"" + origin.getMinX() + "," + origin.getMinY() + "," + origin.getAbsWidth() + "," + origin.getAbsHeight() + "\">\n";
+      "<meta name=\"first-region-bbox\" content=\"" + origin.getMinX() + "," + origin.getMinY() + "," + origin.getAbsWidth() + "," + origin.getAbsHeight() + "\">\n"));
     w.write(out.toProperDocumentString(id, meta));
   }
 
@@ -1049,6 +1119,15 @@ public class Table extends AbstractTableModel implements HasID, TextMatch.Search
     if (colBoundXs == null) {
       computeColBoundXs();
     }
+  }
+
+  public void resetRowsToOrigin() {
+    numRows = originRows.size();
+    numCols = originRows.get(0).size();
+    // copy originRows into rows
+    rows = new ArrayList<List<RectangularTextContainer>>(numRows);
+    for (int i = 0; i < numRows; i++)
+      rows.add(new ArrayList<RectangularTextContainer>(originRows.get(i)));
   }
 
   public static technology.tabula.Table extractTabulaTable(Region region, List<Float> colBoundXs) {
@@ -1474,31 +1553,40 @@ public class Table extends AbstractTableModel implements HasID, TextMatch.Search
     if (undoHistory.isEmpty())
       throw new UnknownAction("undo");
     Edit ed = undoHistory.remove(undoHistory.size()-1);
-    if (ed instanceof SplitColumn) {
-      SplitColumn sc = (SplitColumn)ed;
-      splitColumns.remove(sc);
-      // undo some of what SplitColumn#apply() does
-      int newColIndex = colBoundXs.indexOf(sc.newColBoundX);
-      colBoundXs.remove(newColIndex);
-      for (Edit e : history) {
-	int newNewColIndex = e.applyToColIndex(newColIndex);
-	e.deleteColumn(newColIndex);
-	newColIndex = newNewColIndex;
-      }
-    } else {
+    if (origin == null) { // synthetic table from KQML description
+      // we know synthetic tables have no SplitColumn edits, so simply remove
+      // the edit, reset to the original state, and redo all the other edits
       history.remove(ed);
-    }
-    // rerun tabula (without first boundary because that would make a blank
-    // column at the beginning)
-    technology.tabula.Table tabulaTable =
-      extractTabulaTable(origin, colBoundXs.subList(1, colBoundXs.size()));
-    setTabulaTable(tabulaTable);
-    // reapply the (non-SplitColumn) history to the newly extracted table
-    for (Edit e : history) {
-      // FIXME? theoretically, this should never throw, since we know it worked
-      // the first time around; still, maybe we should catch BadEdit here and
-      // clean things up before rethrowing, like in edit()?
-      e.apply();
+      resetRowsToOrigin();
+      for (Edit e : history)
+	e.apply();
+    } else { // real table extracted from a page with Tabula
+      if (ed instanceof SplitColumn) {
+	SplitColumn sc = (SplitColumn)ed;
+	splitColumns.remove(sc);
+	// undo some of what SplitColumn#apply() does
+	int newColIndex = colBoundXs.indexOf(sc.newColBoundX);
+	colBoundXs.remove(newColIndex);
+	for (Edit e : history) {
+	  int newNewColIndex = e.applyToColIndex(newColIndex);
+	  e.deleteColumn(newColIndex);
+	  newColIndex = newNewColIndex;
+	}
+      } else {
+	history.remove(ed);
+      }
+      // rerun tabula (without first boundary because that would make a blank
+      // column at the beginning)
+      technology.tabula.Table tabulaTable =
+	extractTabulaTable(origin, colBoundXs.subList(1, colBoundXs.size()));
+      setTabulaTable(tabulaTable);
+      // reapply the (non-SplitColumn) history to the newly extracted table
+      for (Edit e : history) {
+	// FIXME? theoretically, this should never throw, since we know it
+	// worked the first time around; still, maybe we should catch BadEdit
+	// here and clean things up before rethrowing, like in edit()?
+	e.apply();
+      }
     }
     redoHistory.add(0, ed);
     SwingUtilities.invokeLater(new Runnable() {
@@ -2242,8 +2330,15 @@ public class Table extends AbstractTableModel implements HasID, TextMatch.Search
 	  throw new BadEdit("split-column conflicts with merge-tables already in edit history");
 	}
       }
-      // the index of the new column (to the right of the new boundary)
-      int newColIndex = xCoordToColIndex(newColBoundX);
+      // the index of the new column (to the right of the new boundary), in the
+      // original table returned by tabula (not the current edited table)
+      // NOTE: not this (gets the index in the edited table)
+      //int newColIndex = xCoordToColIndex(newColBoundX);
+      int newColIndex;
+      for (newColIndex = 0;
+           newColIndex < numCols && colBoundXs.get(newColIndex) <= newColBoundX;
+	   newColIndex++)
+	;
       if (newColIndex == 0)
 	throw new BadEdit("new column boundary is entirely before the first column");
       // add the new boundary

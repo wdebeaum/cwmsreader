@@ -9,18 +9,20 @@
 	 ;;lex headcat removed --me
      (PP KIND MASS NAME agr SEM SORT PRO SPEC CLASS transform gap gerund)
      ;;(ADVBLS FOCUS VAR SEM SORT ATYPE ARG SEM ARGUMENT NEG TO QTYPE lex transform)
-     (ADVBL VAR SORT ARGSORT SEM ARGUMENT ARG lex orig-lex headcat transform neg result-only))
+     (ADVBL ;;VAR
+      SORT ARGSORT SEM ARGUMENT ARG lex orig-lex headcat transform neg result-only))
 
-    ;;  ADJ -> ADVBL -- location adjective phrases can be used as adverbials e.g., put it right of the door
+    ;;  ADJ -> ADVBL -- relative location adjective phrases can be used as adverbials e.g., put it right of the door
 
-    ((ADVBL (ARG ?arg) (gap ?gap)
-      (LF ?lf)
+    ((ADVBL (ARG ?arg) (gap ?gap) (var *)
+      (LF (% PROP (CLASS ont::direction) (var *) (constraint (& (affected ?v)))))
       (sem ?sem) (atype post)
       )
      -advbl-adj>
-     (head (adjp (lf ?lf) (var ?v) (comparative -)  (gap ?gap) (atype predicative-only)
+     (head (adjp (lf ?lf) (var ?v) (comparative -)  ;;(gap ?gap) (atype predicative-only)
 		 (argument (% ?xxx (var ?arg)))
-		 (sem ?sem) (sem ($ f::ABSTR-OBJ (f::type ont::location-val)))
+		 (sem ?sem) (sem ($ f::ABSTR-OBJ (f::type ont::oriented-loc-reln)))
+		 (lf (% ?s (class ont::oriented-loc-reln)))
 		 
       )))
 
@@ -56,7 +58,7 @@
 	 ;;lex headcat removed --me
      (PP KIND MASS NAME agr SEM SORT PRO SPEC CLASS transform gap gerund)
      ;;(ADVBLS FOCUS VAR SEM SORT ATYPE ARG SEM ARGUMENT NEG TO QTYPE lex transform)
-     (ADVBL VAR SORT ARGSORT ATYPE SEM ARGUMENT lex orig-lex headcat transform neg result-only)
+     (ADVBL VAR SORT ARGSORT ATYPE SEM ARGUMENT lex orig-lex headcat transform neg result-only subcat)
      (ADV SORT ATYPE CONSTRAINT SA-ID PRED NEG TO LEX orig-lex HEADCAT SEM ARGUMENT SUBCAT IGNORE transform)
      )	       	       
 
@@ -128,7 +130,7 @@
     ;; These weren't picked up and the whole system prone to failure
     ;; Instead, I re-wrote it so that now pp adverbials place restriction on case (which is the only reason I can see it here)
     ;; TEST: instead of the house, from the store, due to drought
-    ((ADVBL (ARG ?arg) (FOCUS ?subv)
+    ((ADVBL (ARG ?arg) (FOCUS ?subv) (class ?lf)
             (LF (% PROP (VAR ?v) (CLASS ?lf) (CONSTRAINT (& (?submap ?subv) (?argmap ?arg)))
                    (sem ?sem) (transform ?trans)))
       (sem ?sem) (VAR ?v) (role ?lf) (subcatsem ?subcatsem) (gap ?gap)
@@ -293,14 +295,14 @@
 
        ;;  BINARY-CONSTRAINT adverbials that allow omitted objects, e.g., nearby, near, below, about, ...
     ;; TEST: The dog chased the cat below.
-    ((ADVBL (ARG ?arg) (QTYPE ?wh) (FOCUS ?var)
+    ((ADVBL (ARG ?arg) (QTYPE ?wh) (FOCUS ?var) (class ?lf)
 	    (LF (% PROP (VAR ?v) (CLASS ?lf) (CONSTRAINT (& (?submap (% *PRO* (var *) (CLASS ONT::ANY-SEM)
 									(SEM ?subcatsem))) (?argmap ?arg)))
                    (sem ?sem) (transform ?trans)))
       ;;(SORT CONSTRAINT)
       (role ?lf) (subcatsem ?subcatsem)
       )
-     -advbl-binary-deleted> .97
+     -advbl-binary-deleted> .985
      (head (adv (SUBCAT (% ?x (SEM ?subcatsem))) (VAR ?v)
 	    (sort (? !sort pp-word double-subcat))
 	    (subcat-map ?submap) (ARGUMENT-MAP ?argmap)
@@ -311,7 +313,7 @@
     ;;  Gapped ADVBLs with entire subcat gone, this one for NP subcats only
     ;; TEST: The store the cat was from.
     ((ADVBL (ARG ?arg) 
-            (GAP (% NP (var ?gapv) (SEM ?gapsem) (gap -)
+            (GAP (% NP (var ?gapv) (SEM ?gapsem) (gap -) (status ?status) ;status is matched in wh-q2
 	            (agr ?gapagr) (case (? case obj -))))       
             (FOCUS ?var)
             (LF (% PROP (VAR ?v) (CLASS ?lf) (CONSTRAINT (& (?submap ?gapv) (?argmap ?arg)))
@@ -546,7 +548,7 @@
 
      
     ;;  resultative construction using adverbs: e.g., I walked to the store
-    ;; it seems this is also used for passive transitives, e.g., The box was moved to the corner
+    ;; (not any more 2020/02/18: it seems this is also used for passive transitives, e.g., The box was moved to the corner )
     ((vp- (constraint ?new) (tma ?tma) (class (? class ONT::EVENT-OF-CAUSATION)) (var ?v)
 				       ;(class (? class ONT::EVENT-OF-CHANGE)) (var ?v) ; it leaked from the roof ; I arrived into the house; but we need to exclude e.g, used/expressed in the liver (yes, passive)
          ;;(LF (% PROP (constraint ?new) (class ?class) (sem ?sem) (var ?v) (tma ?tma)))
@@ -556,7 +558,7 @@
       (advbl-needed -) (complex +) (GAP ?gap)
       )
      -vp-result-advbl-intransitive>  
-     (head (vp- (VAR ?v) 
+     (head (vp- (VAR ?v) (vform (? !vform passive)) ; exclude passives
 		(seq -)  ;;  post mods to conjoined VPs is very rare
 		;(DOBJVAR -)  ; This doesn't work because it could unify with a dobjvar not yet instantiated
 		;(dobj (% -)) ; cannot use (dobj -) because dobj is (% - (W::VAR -))
@@ -680,10 +682,11 @@
 	   (ATYPE PREDICATIVE-ONLY)
 	   (SORT PRED) (WH Q) (WH-VAR *)
       )
-     -what-adj-pre> 
+     -what-adj-pre> 1.02
      (word (lex w::what))
      (head (N1 (sem ?sem) (sem ($ f::abstr-obj (f::scale ?!sc) (f::type ONT::DOMAIN))) (RESTR ?restr)
-	 (var ?v) (agr ?agr) (mass ?mass) (gap ?gap)
+	       (var ?v) (agr ?agr) (mass ?mass) (gap ?gap)
+	       (class (? x ONT::DOMAIN)) ; fails, not just penalized, if not ONT::DOMAIN
 	 ))
      (append-conjuncts (conj1 ?restr)
 		       (conj2 (& (ONT::GROUND (% *PRO* (status *wh-term*) (VAR *) (CLASS ONT::LEVEL)
@@ -757,6 +760,25 @@
       )
      (add-to-conjunct (val (MODS ?mod)) (old ?con) (new ?new)))
 
+    ;; she, however, ate the pizza.
+   ((vp- (constraint ?new)
+     (tma ?tma) (sem ?argsem)
+     (advbl-needed ?avn)
+      )
+    -adv-vp-pre-s-comma> ;.98 ; already gets lower score because of the comma constits
+    (punc (lex w::punc-comma))
+     (advbl (SORT PRED) (ATYPE (? x PRE-VP)) (ARGUMENT (% S (SEM ?sem))) ;;($ f::situation))))
+      (GAP -) 
+      (ARG ?v) (VAR ?mod)
+      )
+    (punc (lex w::punc-comma))
+     (head (vp- (VAR ?v) (constraint ?con) (SEM ?argsem) ;;(aux -) 
+		(tma ?tma)
+		(advbl-needed ?avn)
+	    )
+      )
+     (add-to-conjunct (val (MODS ?mod)) (old ?con) (new ?new)))
+   
     ;; another version of adv-vp-pre-s> for occasional cases, and rarer
     ;; she in this case was fired
    ((vp- (constraint ?new)
@@ -778,12 +800,11 @@
       )
      (add-to-conjunct (val (MODS ?mod)) (old ?con) (new ?new)))
    
-
     ((vp- (constraint ?new) (tma ?tma) (class ?class) (sem ?sem) (var ?v)
       (advbl-needed -) (complex +) (subjvar ?subjvar)
       (GAP ?gap)
       )
-     -adv-vp-post> .98   ;;  want to prefer explicitly subcategorized attachments
+     -adv-vp-post> .985   ;;  want to prefer explicitly subcategorized attachments
      (head (vp- (VAR ?v) 
 		(seq -)  ;;  post mods to conjoined VPs is very rare
 		(SEM ?sem) 
@@ -989,9 +1010,9 @@
 	   (LF (% PROP (CLASS ?class) (VAR *) (sem ?sem) (CONSTRAINT (& (sequence (?v1 ?v2)) (operator ?conj))
 		  ))))
      -advbl-conj1>
-     (ADVBL (ARG ?arg) (LF (% PROP (CLASS ?lf1) (VAR ?v1)(sem ?sem1))) (gap ?g) (argument ?argmt))
+     (ADVBL (ARG ?arg) (LF (% PROP (CLASS ?lf1) (VAR ?v1)(sem ?sem1))) (gap ?g) (argument ?argmt) (gap -))
      (CONJ (LF ?conj) (but-not -) (but -))
-     (head (ADVBL (ARG ?arg) (LF (% PROP (CLASS ?lf2) (VAR ?v2) (sem ?sem2))) (gap ?g) (argument ?argmt)))
+     (head (ADVBL (ARG ?arg) (LF (% PROP (CLASS ?lf2) (VAR ?v2) (sem ?sem2))) (gap ?g) (argument ?argmt) (gap -)))
     (sem-least-upper-bound (in1 ?sem1) (in2 ?sem2) (out ?sem))
     (class-least-upper-bound (in1 ?lf1) (in2 ?lf2) (out ?class))
     )
@@ -1125,6 +1146,7 @@
 	    (no-postmodifiers -) ;; exclude "the same path as the battery" and advbl attaching to "path"
 	    (rate-activity-nom -)
 	    (agent-nom -)
+	    (gap -) ; to prevent losing the gap with two successive adv-np-post applications (where the gap moved from the advbl to the n1 after the first application) ; TODO: pass on the gap from the N1
 	    ))
      (advbl (ATYPE POST) 
       (result-only -)  ;; only allow adverbials that may be interpreted as something other than a result
@@ -1804,7 +1826,8 @@
 		(lex ?pt) (headcat ?hc)
 		(sem ?somesem) ;(sem ($ ?somesem))
 		(var ?gapvar) (agr ?agr)     
-     (gap (% np (lf ?lf) (var ?gapvar) (gap -) (sort (? sort pred descr wh-desc)) (case (? case obj -)) (agr ?agr) (sem ?somesem)))
+		(gap (% np (lf ?lf) (var ?gapvar) (gap -) (sort (? sort pred descr wh-desc))
+			(case (? case obj -)) (agr ?agr) (sem ?somesem) (status ?status))) ; status is matched in wh-q2
      )					; I set the case here to a var, in order to allow -np-spec-of-pp> to work. Otherwise, CASE is not used in PPs
     -pp1-gap> 0.98
     (head (prep (LEX ?pt) (headcat ?hc)))

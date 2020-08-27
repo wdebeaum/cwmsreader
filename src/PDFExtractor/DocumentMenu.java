@@ -11,6 +11,9 @@ import javax.swing.JLabel;
 import javax.swing.JTextField;
 import javax.swing.JToolBar;
 import TRIPS.util.cwc.WindowConfig;
+import TRIPS.KQML.KQMLList;
+import TRIPS.KQML.KQMLObject;
+import TRIPS.KQML.KQMLPerformative;
 
 /** Menu bar associated with a {@link Document} displayed in a {@link PDFPane}.
  */
@@ -66,6 +69,7 @@ public class DocumentMenu extends JToolBar implements ActionListener, PDFPane.Li
     detect.setEnabled(true); // TODO remember whether we detected on this page?
     setPageNumber();
   }
+  @Override public void pageClicked(int x, int y, Page page) {/* do nothing */}
 
   // Page.Listener
   @Override public void pageChanged(Page.Event pageEvent) {
@@ -91,9 +95,19 @@ public class DocumentMenu extends JToolBar implements ActionListener, PDFPane.Li
     // ActionListener
     @Override public void actionPerformed(ActionEvent evt) {
       try {
-	pane.getPage().detectTableRegions();
+	Page page = pane.getPage();
+	List<Region> regions = page.detectTableRegions();
 	setEnabled(false);
 	pane.requestFocusInWindow(); // so pgup/dn works
+	// report
+	KQMLList regionsKQML = new KQMLList();
+	for (Region region : regions) {
+	  regionsKQML.add(region.toKQML(false));
+	}
+	KQMLPerformative actionKQML = new KQMLPerformative("detected-table-regions");
+	actionKQML.setParameter(":page", page.getID());
+	actionKQML.setParameter(":regions", regionsKQML);
+	module.report(actionKQML);
       } catch (IOException ex) {
 	ex.printStackTrace();
       }
@@ -111,6 +125,11 @@ public class DocumentMenu extends JToolBar implements ActionListener, PDFPane.Li
       Table table = new Table(regions.get(regions.size() - 1));
       module.displayTable(table, new WindowConfig());
       pane.requestFocusInWindow(); // so pgup/dn works
+      // report
+      KQMLObject tableKQML = table.toKQML();
+      KQMLPerformative actionKQML = new KQMLPerformative("parsed-table");
+      actionKQML.setParameter(":table", tableKQML);
+      module.report(actionKQML);
     }
   }
 }

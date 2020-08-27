@@ -10,7 +10,7 @@ use TextTagger::Normalize qw(normalize);
 my ($geonameid, $name, $asciiname, $alternatenames, $feature_class, $feature_code) = @F[0,1,2,3,6,7];
 my $id = $geonameid;
 $id =~ s/[^\w\.-]/_/g;
-$id = '_' . $id if ($id =~ /^[\d-]/);
+$id = 'P' . $id if ($id =~ /^[\d-]/);
 my @alts = split(/,/, $alternatenames);
 my $source = $ARGV;
 $source =~ s/.*\///;

@@ -47,7 +47,7 @@ tr.inv td {
 <body>
 <h1>PDFExtractor</h1>
 William de Beaumont<br>
-$Date: 2019/08/07 18:13:22 $
+$Date: 2020/04/10 20:43:17 $
 
 <h2>Introduction</h2>
 <p>PDFExtractor is a TRIPS module that displays pages of PDF files, allows the user to select rectangular regions within those pages, extracts and searches text and tabular data within those regions, and displays the extracted data tables. It uses <a href="https://tabula.technology/">Tabula</a> for table extraction, and <a href="https://pdfbox.apache.org/">Apache PDFBox</a> for reading and drawing PDF files.</p>
@@ -281,6 +281,16 @@ $Date: 2019/08/07 18:13:22 $
 
 <p>Moving an edge or corner of an existing region will result in a similar report with the verb <code>changed</code> instead of <code>selected</code>. Deselecting a region will result in a <code>deselected</code> report instead of <code>changed</code>. No report will be sent for cancelled selections.</p>
 
+<p>Clicking anywhere on the page without dragging will result in a <code>clicked</code> report, which includes the pixel coordinates of the click on the page, as well as descriptions of any highlighted regions that contain the clicked point:</p>
+
+<code><pre>
+  (tell :content (report :content (clicked
+    :x <var>x</var> :y <var>y</var>
+    :page <var>page-id</var>
+    :regions (<var>rect1</var> <var>rect2</var> ...)
+    )))
+</pre></code>
+
 <p>If the document is already being displayed, the <code>display</code> request will instead just set which page is being displayed and the configuration of the window the document is being displayed in. (You can also use the <code>configure</code> request for the latter function.)</p>
 
 <h3>The <code>detect-table-regions</code> request</h3>
@@ -288,7 +298,7 @@ $Date: 2019/08/07 18:13:22 $
 <p>Instead of manually selecting regions, you can also ask Tabula to do it for you using a request like this:</p>
 
 <code><pre>
-  (request :content (detect-table-regions :page <var>page-id</var>))
+  (request :content (detect-table-regions { :page <var>page-id</var> | :region <var>region-id</var> } ))
 </pre></code>
 
 <p>Which will get a reply like this, with zero or more <code>rectangle</code> structures in the same format as in the <code>selected</code> report above:</p>
@@ -296,6 +306,14 @@ $Date: 2019/08/07 18:13:22 $
 <code><pre>
   (reply :content (report :content (answer :regions (<var>rect1</var> <var>rect2</var> ...))))
 </pre></code>
+
+<p>If you click the <code>Detect Table</code> button, you'll get a similar report:</p>
+
+<code><pre>
+  (tell :content (report :content (detected-table-regions :page <var>page-id</var> :regions (<var>rect1</var> <var>rect2</var> ...))))
+</pre></code>
+
+<p>Note that the request also allows you to specify a region on a page instead of the whole page. In that case, any detected tables will be contained in that region.</p>
 
 <h3>The <code>parse-table</code> request</h3>
 <code><pre>
@@ -320,12 +338,18 @@ $Date: 2019/08/07 18:13:22 $
       ("<var>1,0</var>" "<var>1,1</var>" "<var>1,2</var>")
       ("<var>2,0</var>" "<var>2,1</var>" "<var>2,2</var>")
       ("<var>3,0</var>" "<var>3,1</var>" "<var>3,2</var>")
-      ))
-    :rulings ()
-    )))
+      )
+      :rulings ()
+    ))))
 </pre></code>
 
 <p>Note that the <var>table-id</var> is distinct from the <var>region-id</var>.</p>
+
+<p>If you click the <code>Parse Table</code> button, you'll get a similar report:</p>
+
+<code><pre>
+  (tell :content (report :content (parsed-table :table (table <var>...</var>))))
+</pre></code>
 
 <p>If there are any horizontal or vertical lines drawn in the table that span multiple columns or rows (resp.), but not a whole row or column, they will be reported in the <code>:rulings</code> list, with coordinates in terms of the rows and columns of the table, e.g.:</p>
 
@@ -367,6 +391,20 @@ $Date: 2019/08/07 18:13:22 $
  <li><code>(columns :table <var>table-id</var> :first <var>first-column-index</var> :last <var>last-column-index</var>)</code>
  <li><code>(cells :table <var>table-id</var> :first-row <var>first-row-index</var> :first-column <var>first-column-index</var> :last-row <var>last-row-index</var> :last-column <var>last-column-index</var>)</code>
 </ul>
+
+<p>You can also make a new table to display by giving a description of the table (in a similar format to that returned by <code>parse-table</code>) instead of the ID of an existing table:</p>
+
+<code><pre>
+  (request :content (display-table :table
+    (table :data (
+      ("<var>0,0</var>" "<var>0,1</var>" "<var>0,2</var>")
+      ("<var>1,0</var>" "<var>1,1</var>" "<var>1,2</var>")
+      ("<var>2,0</var>" "<var>2,1</var>" "<var>2,2</var>")
+      ("<var>3,0</var>" "<var>3,1</var>" "<var>3,2</var>")
+      ))))
+</pre></code>
+
+<p>Note that you should not supply <code>:id</code> in this case (that will just look up an existing table), and <code>:rulings</code> currently does nothing.</p>
 
 <h3>The <code>select</code> and <code>deselect</code> requests</h3>
 <code><pre>
@@ -694,6 +732,26 @@ $Date: 2019/08/07 18:13:22 $
 <p>...where <code>|Δ<var>foo</var>|</code> means the absolute value of the difference in <var>foo</var> between the specified target region and the found region. A <var>distance</var> of 0 is an exact match, and higher values are less accurate matches. There is no absolute maxiumum <var>distance</var>, and very large <var>distance</var>s can result if the target region is small and the found region is large.</p>
 
 <p>In the answer, an extra argument <code>:distance <var>distance</var></code> is added to each region.</p>
+
+<p>Alternatively, you can use <code>find-similar-regions</code> to find regions whose color is similar to a target color:</p>
+
+<code><pre>
+  (request :content (find-similar-regions
+    :region (rectangle :page <var>page-id</var> :color ONT::<var>color</var>)
+    [ :soft-limit <var>soft-max-result-count</var> ]
+    [ :limit <var>max-result-count</var> ]
+    ))
+</pre></code>
+
+<p>In this case the distance is Euclidean distance in the HSB color space:</p>
+
+<code><pre>
+               -------------------------------------
+	      |     2              2              2
+  <var>distance</var> = \| Δ<var>hue</var>  + Δ<var>saturation</var>  + Δ<var>brightness</var>
+</pre></code>
+
+<p>If you want the exact color, use <code>:limit 1</code> and make sure the returned region has <code>:distance 0</code>.</p>
 
 <h3>The <code>search</code> request</h3>
 

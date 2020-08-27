@@ -51,6 +51,28 @@ public class Region implements HasID, TextMatch.Searchable, HasSortOrders<Region
   };
   final Source source;
 
+  public static enum NamedColor {
+    // from XKCD color naming survey:
+    // https://blog.xkcd.com/2010/05/03/color-survey-results/
+    // these names are also ONT types under ONT::color-val.
+    // black, white, and metallic colors are excluded.
+    PURPLE (0x7E1E9C),
+    GREEN  (0x15B01A),
+    BLUE   (0x0343DF),
+    PINK   (0xFF81C0),
+    BROWN  (0x653700),
+    RED    (0xE50000),
+    ORANGE (0xF97306),
+    MAGENTA(0xC20078),
+    YELLOW (0xFFFF14),
+    GRAY   (0x929591),
+    TAN    (0xD1B26F);
+    public final Color color;
+    private NamedColor(int rgb) {
+      this.color = new Color(rgb);
+    }
+  };
+
   public static enum Coord { X1, Y1, X2, Y2 };
 
   //accessors
@@ -127,12 +149,17 @@ public class Region implements HasID, TextMatch.Searchable, HasSortOrders<Region
 
   public Region(Rectangle rect, Page page,
 		Source source, Color color, String id) {
-    this.fresh = true;
+    this.fresh = (source == Source.USER);
     this.rect = rect;
     this.page = page;
     this.color = color;
     if (this.color == null) {
-      this.color = Region.generateRandomColor();
+      int i = page.getRegions().size();
+      if (i < NamedColor.values().length) {
+	this.color = NamedColor.values()[i].color;
+      } else {
+	this.color = Region.generateRandomColor();
+      }
     }
     if (id == null) {
       this.id = HasID.getNextIDAndPut(this);
@@ -179,6 +206,12 @@ public class Region implements HasID, TextMatch.Searchable, HasSortOrders<Region
   public Region(double x1, double y1, double x2, double y2, 
                 Page page, Source source, Color color, String id) {
     this(clampRectToPage(x1,y1,x2,y2,page), page, source, color, id);
+  }
+  
+  /** Create a Region, assigning it the specified color and an arbitrary ID. */
+  public Region(double x1, double y1, double x2, double y2,
+		Page page, Source source, Color color) {
+    this(x1,y1, x2,y2, page, source, color, null);
   }
   
   /** Create a Region, assigning it a random-hued color and an arbitrary ID. */
@@ -276,6 +309,13 @@ public class Region implements HasID, TextMatch.Searchable, HasSortOrders<Region
       reg.setParameter(":w", Double.toString(getAbsWidth()));
     if (source != Source.HORIZONTAL)
       reg.setParameter(":h", Double.toString(getAbsHeight()));
+    for (NamedColor c : NamedColor.values()) {
+      if (c.color.equals(color)) {
+	reg.setParameter(":color", new KQMLToken("ONT::" + c.toString()));
+	break;
+      }
+    }
+    // TODO generic color descriptions for unnamed colors
     return reg;
   }
 
@@ -301,12 +341,27 @@ public class Region implements HasID, TextMatch.Searchable, HasSortOrders<Region
 	KQMLObject pageKQML =
 	  Args.getTypedArgument(perf, ":page", KQMLObject.class);
 	Page page = Page.fromKQML(pageKQML);
-        return new Region(x1,y1, x2,y2, page, Source.SYSTEM);
+	Color color = null;
+	KQMLToken colorKQML =
+	  Args.getTypedArgument(perf, ":color", KQMLToken.class, null);
+	if (colorKQML != null)
+	  color = colorFromKQML(colorKQML);
+        return new Region(x1,y1, x2,y2, page, Source.SYSTEM, color);
       }
     } else if (listOrID instanceof KQMLToken) {
       return HasID.get(listOrID.toString(), Region.class);
     } else {
       throw new InvalidArgument("nil", ":region", "list or id", listOrID);
+    }
+  }
+
+  public static Color colorFromKQML(KQMLToken colorKQML) throws InvalidArgument {
+    try {
+      NamedColor namedColor =
+	Enum.valueOf(NamedColor.class, colorKQML.getName().toUpperCase());
+      return namedColor.color;
+    } catch (IllegalArgumentException ex) {
+      throw new InvalidArgument("rectangle", ":color", "ONT type under ONT::color-val (except black, white, no-color-val, and metallic colors)", colorKQML);
     }
   }
 
@@ -543,6 +598,32 @@ public class Region implements HasID, TextMatch.Searchable, HasSortOrders<Region
       @Override
       public KQMLObject toKQML() {
 	return new KQMLList(new KQMLToken("distance"), target.toKQML());
+      }
+    }
+    /** Order regions in relation to a target color, by Euclidean distance in
+     * HSB space.
+     */
+    public static class ColorKey implements Key {
+      public final Color target;
+      public ColorKey(Color target) {
+	this.target = target;
+      }
+      @Override
+      public double of(Region r) {
+	float[] targetHSB =
+	  Color.RGBtoHSB(target.getRed(), target.getGreen(), target.getBlue(),
+			 null);
+	Color test = r.getColor();
+	float[] testHSB =
+	  Color.RGBtoHSB(test.getRed(), test.getGreen(), test.getBlue(), null);
+	float dh = testHSB[0] - targetHSB[0];
+	float ds = testHSB[1] - targetHSB[1];
+	float db = testHSB[2] - targetHSB[2];
+	return Math.sqrt(dh*dh + ds*ds + db*db);
+      }
+      @Override
+      public KQMLObject toKQML() {
+	throw new UnsupportedOperationException("TODO?");
       }
     }
     public final Key key;

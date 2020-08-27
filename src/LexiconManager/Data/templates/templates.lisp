@@ -15,12 +15,12 @@
 	(LSUBJ (% W::NP) ONT::AGENT)
 	(LOBJ (:parameter xp (:default (% W::NP))) ONT::FORMAL)
 	))
-      
+      #|
       (experiencer-THEME-XP-TEMPL
        (ARGUMENTS
 	(LSUBJ (% W::NP) ONT::experiencer)
 	(LOBJ (:parameter xp (:default (% W::NP))) ONT::FORMAL)
-	))
+	))|#
 
       (AGENT-FORMAL-XP-CP-TEMPL
        (ARGUMENTS
@@ -44,13 +44,6 @@
 	(LCOMP (% W::CP  (W::ctype W::s-finite)) ONT::FORMAL)
 	))
 
-#|      (affected-THEME-XP-TEMPL
-       (ARGUMENTS
-	(LSUBJ (% W::NP (w::sort (? !xx W::unit-measure))) ONT::affected)
-	(LOBJ (:parameter xp (:default (% W::NP))) ONT::FORMAL)
-	))
-|#
-
       (AFFECTED-FORMAL-XP-ADVBL-TEMPL
        (ARGUMENTS
 	(LSUBJ (% W::NP (w::sort (? !xx W::unit-measure))) ONT::affected)
@@ -58,12 +51,6 @@
 					  )) ONT::FORMAL)
 	))
 
-#|      (AGENT-THEME-XP-optional-TEMPL
-       (ARGUMENTS
-	(LSUBJ (% W::NP) ONT::AGENT)
-	(LOBJ (:parameter xp (:default (% W::NP))) ONT::FORMAL optional)
-	))
-|#
     
       (AGENT-RESULT-XP-NP-TEMPL
        (ARGUMENTS
@@ -79,28 +66,6 @@
 					     (W::lex ?lsubjlex) (W::var ?lsubjvar) (w::expletive ?exp)))))
 	      ONT::RESULT optional)
 	))
-
-#|      (theme-goal-XP-TEMPL
-       (ARGUMENTS
-	(LSUBJ (% W::NP) ont::formal)
-	(LOBJ (:parameter xp (:default (% W::NP))) ONT::RESULT)
-	))
-|#
-
-; nobody uses this
-      #|
-      (INSTRUMENT-THEME-XP-TEMPL
-       (ARGUMENTS
-	(LSUBJ (% W::NP) ONT::INSTRUMENT)
-	(LOBJ (:parameter xp (:default (% W::NP))) ONT::FORMAL)
-	))
-
-      (INSTRUMENT-affected-XP-TEMPL
-       (ARGUMENTS
-	(LSUBJ (% W::NP) ONT::INSTRUMENT)
-	(LOBJ (:parameter xp (:default (% W::NP (w::sort (? !xx W::unit-measure))))) ONT::affected)
-	))
-      |#
       
       (AGENT-AFFECTED-XP-NP-TEMPL
        (ARGUMENTS
@@ -143,12 +108,12 @@
 	(LSUBJ (% W::NP) ONT::neutral)
 	(LCOMP (:parameter xp (:default (% W::NP))) ONT::formal)
 	))
-
+#| retired: using experiencer-formal-xp-templ 
       (experiencer-formal-as-comp-TEMPL
        (ARGUMENTS
 	(LSUBJ (% W::NP) ONT::experiencer)
 	(LCOMP (:parameter xp (:default (% W::NP))) ONT::formal)
-	))
+	))|#
 
       (AGENT-neutral-XP-TEMPL
        (ARGUMENTS
@@ -970,13 +935,28 @@
 	))
 |#
 
+      #|
       (NEUTRAL-NEUTRAL1-NP-EQUAL-TEMPL
        (ARGUMENTS
-      	(LSUBJ (% W::NP (W::agr ?agr) (w::sem ?sem) (w::gerund -) ;;(w::status ont::definiteQ)
+      	(LSUBJ (% W::NP (W::agr ?agr) (w::sem ?sem) (w::gerund -) ;;(w::status ont::definiteQ) (w::coerce-amt -)
 		  (w::expletive -)) ONT::neutral)
-	(LOBJ (% W::NP (W::agr ?agr) (w::sem ?sem) (w::gerund -) ;;(w::status ont::definiteQ)
-		 (w::expletive -)) ONT::neutral1)
+	(LOBJ (% W::NP (W::agr ?agr) (w::sem ?sem) (w::gerund -) (w::status (? status ont::definite ont::definite-plural ont::pro ont::pro-set ont::the ont::the-set )) ;(w::status ont::definiteQ) ;;(w::coerce-amt -)
+		 (w::expletive -) (lex (? !lex w::what))) ONT::neutral1)
 	))
+      |#
+
+      (NEUTRAL-NEUTRAL1-NP-EQUAL-TEMPL
+       (ARGUMENTS
+      	(LSUBJ (% W::NP (W::agr ?agr) (w::sem ?sem) (w::gerund -) ;;(w::status ont::definiteQ) (w::coerce-amt -)
+		  (w::expletive -)) ONT::neutral)
+	(LOBJ (% W::NP (W::agr ?agr) (w::sem ?sem1) ;(w::sem ?sem)
+		 (w::gerund -)
+					;(w::status (? status ont::definite ont::definite-plural ont::pro ont::pro-set ont::the ont::the-set ))
+					;(w::status ont::definiteQ) ;;(w::coerce-amt -)
+		 (w::expletive -) ;(lex (? !lex w::what))
+		 ) ONT::neutral1)
+	))
+
 
       (NEUTRAL-FORMAL-PRED-SUBJCONTROL-TEMPL
        (ARGUMENTS
@@ -1077,6 +1057,12 @@
        (ARGUMENTS
 	(LSUBJ (% W::NP) ONT::agent)
 	(LOBJ (% W::NP) ONT::neutral)
+	))
+
+(agent-neutral-xp-comp-TEMPL
+       (ARGUMENTS
+	(LSUBJ (% W::NP) ONT::agent)
+	(LCOMP (:parameter xp (:default (% W::PP (w::ptype w::about)))) ONT::neutral)
 	))
 
 (experiencer-neutral-TEMPL
@@ -1448,13 +1434,13 @@
 	(LSUBJ (% W::NP) ONT::AGENT)
 	(LOBJ  (:parameter xp (:default (% W::NP))) ONT::AGENT1)
 	))
-      
+      #| not used anymore
       (AGENT-RESULT-FORMAL-XP-OPTIONAL-TEMPL
        (ARGUMENTS
 	(LSUBJ (% W::NP) ONT::AGENT)
 	(LIOBJ (% W::NP) ONT::RESULT)
 	(LCOMP (:parameter xp (:default (% W::pp (W::ptype W::with)))) ONT::FORMAL OPTIONAL)
-	))
+	))|#
 
       (RESULT-TEMPL
        (ARGUMENTS
@@ -1751,7 +1737,7 @@
     (LCOMP (:parameter xp2 (:default (% W::PP (W::ptype (? pt W::to W::with))))) ONT::AGENT1 optional)
     ))
   
-  ;;;;; talk about it to her
+  ;;;;; respond about it to her
   (AGENT-FORMAL-AGENT1-2-XP1-PP-3-XP2-PP-TO-OPTIONAL-TEMPL
    (ARGUMENTS
     (LSUBJ (% W::NP) ONT::AGENT)
@@ -1858,12 +1844,13 @@
     (LIOBJ (% W::NP) ont::result optional)
     ))
 
+#| not used anymore
   (AGENT-RESULT-FORMAL-XP-TEMPL
    (ARGUMENTS
     (LSUBJ (% W::NP) ONT::AGENT)
     (LOBJ (% W::NP) ONT::RESULT)
     (LCOMP (:parameter xp (:default (% W::NP)))  ONT::FORMAL)
-    ))
+    ))|#
 
 ;; e.g., cc me on that
   (AGENT-AFFECTEDR-AFFECTED-XP-NP-TEMPL
@@ -1894,6 +1881,13 @@
     (LSUBJ (% W::NP) ONT::AGENT)
     (LOBJ (:parameter xp1 (:default (% W::NP))) ONT::Agent1)
     (LCOMP (:parameter xp (:default (% W::NP))) ont::NEUTRAL OPTIONAL)
+    ))
+
+(AGENT-AGENT1-NEUTRAL-2-XP1-3-XP-TEMPL
+   (ARGUMENTS
+    (LSUBJ (% W::NP) ONT::AGENT)
+    (LOBJ (:parameter xp1 (:default (% W::NP))) ONT::Agent1)
+    (LCOMP (:parameter xp (:default (% W::NP))) ont::NEUTRAL)
     ))
 
    (AGENT-AGENT1-FORMAL-2-XP1-3-XP-TEMPL
@@ -2065,6 +2059,7 @@
     (LSUBJ (% W::NP) ONT::affected-result)
     ))
 
+#|
 (AGENT-AFFECTEDR-MANNER-2-XP-3-XP2-OPTIONAL-TEMPL
    (ARGUMENTS
     (LSUBJ (% W::NP) ONT::AGENT)
@@ -2078,6 +2073,7 @@
     (LOBJ  (:parameter xp (:default (% W::NP))) ONT::affected-result)
     (LCOMP (:parameter xp2 (:default (% W::PP (W::ptype W::on)))) ONT::manner)
     ))
+|#
 
 (affected-RESULT-TEMPL
    (ARGUMENTS
@@ -2149,7 +2145,7 @@
 (EXPERIENCER-FORMAL-XP-TEMPL
    (ARGUMENTS
     (LSUBJ (% W::NP (W::lex ?lsubjlex) (W::sem ?lsubjsem) (W::var ?lsubjvar) (w::expletive ?exp)) ONT::experiencer)
-    (LCOMP (:parameter xp (:default (% W::cp (W::ctype W::finite))) 
+    (LCOMP (:parameter xp (:default (% W::cp (W::ctype W::s-finite))) 
 		      ) ont::formal)
     ))
 
@@ -2605,6 +2601,13 @@
 	   )
    (ARGUMENTS
     ))
+
+  (quan-cardinality-pl-convertable-templ
+   (SYNTAX (W::AGR w::3P) (W::CARDINALITY +) (W::convert-to-adj +)(W::MASS (? m1 W::count w::bare))
+	   (W::QOF (% W::PP (W::PTYPE W::OF) (w::agr W::3P) (w::mass (? m2 w::count w::bare)) ))   ;; cardinality in OF should be plural, right 
+	   )
+   (ARGUMENTS
+    ))  
   
   (quan-no-bare-templ
    (SYNTAX(W::NobareSpec +))
@@ -2619,6 +2622,13 @@
    (SYNTAX(W::SORT W::OPERATOR) (W::ATYPE W::PRE))
    (ARGUMENTS
     (ARGUMENT (% (? W::argcat ;;W::ADVBL   ;; what's an example of NO ADV?
+		    W::ADJP)  (w::set-modifier -) (W::sort ?sort)) ONT::FIGURE)
+    ))
+
+(ADJ-OR-ADV-OPERATOR-TEMPL
+   (SYNTAX(W::SORT W::OPERATOR) (W::ATYPE W::PRE))
+   (ARGUMENTS
+    (ARGUMENT (% (? W::argcat W::ADVBL  
 		    W::ADJP)  (w::set-modifier -) (W::sort ?sort)) ONT::FIGURE)
     ))
 
