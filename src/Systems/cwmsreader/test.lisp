@@ -13,7 +13,7 @@
 ;;;
 ;;; Load our TRIPS system
 ;;;
-(load #!TRIPS"src;Systems;cwms;system")
+(load #!TRIPS"src;Systems;cwmsreader;system")
 
 ;;;
 ;;; Load core testing code

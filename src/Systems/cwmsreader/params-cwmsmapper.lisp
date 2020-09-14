@@ -120,9 +120,8 @@
 ;; don't use wordnet if we have TRIPS entries  
 (setq  lxm::*use-trips-and-wf-senses* nil) 
 
-;;;; LOGGING options
-(setq logging::*logging-enabled* nil)
-(setq logging2::*logging-enabled* nil)
+;;;; LOGGING options (logging is on by default)
+;; (setq logging2::*logging-enabled* nil)
 
 ;;  DM settings
 (setq dagent::*silent-failures* nil)  ;; don't ignore utterance failure

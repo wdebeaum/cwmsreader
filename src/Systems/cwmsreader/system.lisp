@@ -10,22 +10,17 @@
 
 (load #!TRIPS"src;Systems;core;system")
 
-(trips:def-trips-system :cwms
+(trips:def-trips-system :cwmsreader
   (:dfc-component	:lxm               #!TRIPS"src;LexiconManager;")
   (:dfc-component	:parser            #!TRIPS"src;Parser;")
   (:dfc-component       :im                #!TRIPS"src;NewIM;")
-  ;;(:dfc-component       :dagent            #!TRIPS"src;BasicDialogueAgent;")
-  ;;(:dfc-component       :CWMSAgent     	   #!TRIPS"src;CWMSAgent;")
-  ;;(:dfc-component       :surfacegeneration     	   #!TRIPS"src;SurfaceGeneration;")
-  ;; (:dfc-component       :gm     	   #!TRIPS"src;GMPlow;")
-  ;;(:dfc-component       :dummy     	   #!TRIPS"src;Dummy;")
   ;;(:dfc-component       :pdflearn          #!TRIPS"src;PDFLearn;")
   (:dfc-component	:deepsemlex	   #!TRIPS"src;DeepSemLex;code;lib;")
   )
 
 ;; add WebParser to the system when we have its source directory
 (when (probe-file #!TRIPS"src;WebParser;defsys.lisp")
-  (nconc (assoc :cwms trips::*trips-systems*)
+  (nconc (assoc :cwmsreader trips::*trips-systems*)
 	 (list '(:dfc-component :webparser #!TRIPS"src;WebParser;"))))
 
 ;; Now load the system

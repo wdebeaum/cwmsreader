@@ -134,8 +134,7 @@
 ;; don't use wordnet if we have TRIPS entries  
 (setq  lxm::*use-trips-and-wf-senses* nil) 
 
-;;;; LOGGING options
-(setq logging::*logging-enabled* nil)
+;;;; LOGGING options (logging is on by default)
 (setq logging2::*logging-enabled* nil)
 
 

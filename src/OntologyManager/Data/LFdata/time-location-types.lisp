@@ -51,6 +51,15 @@
 				       )))
     )
 
+(define-type ont::at-loc-relative
+    :comment "prototypical locating of a FIGURE wrt a point-like GROUND"
+    :parent ont::at-loc
+    :arguments ((:ESSENTIAL ONT::GROUND (f::phys-obj
+					 ;(f::tangible +)
+					 (f::type ont::loc-wrt-orientation)
+					 )))
+    )
+
 (define-type ont::loc-where-rel
     :comment "relative clause relations that could be at-loc or in-loc, e.g., a place where it never rains; the city where I live"
     :parent ont::position-as-point-reln
@@ -263,6 +272,19 @@
     :arguments ((:essential ONT::FIGURE (f::PHYS-OBJ) (F::spatial-abstraction (? spa F::line F::strip)))
 		(:essential ONT::GROUND ((? of1  f::phys-obj f::abstr-obj) (f::type (? t ONT::CARDINAL-POINT ONT::object-dependent-location)))))
   )
+
+#|(define-type ont::over-orientation-change
+  :comment "the orientation of the figure is changed"
+  :parent ont::oriented-loc-reln
+  :wordnet-sense-keys ("over%4:02:01")
+)
+
+(define-type ont::over-to
+  :comment "either intransitive preposition, or to-PP complement as GROUND"
+  :parent ont::oriented-loc-reln
+  :wordnet-sense-keys ("over%4:02:01")
+)
+|#
 
 ; figure is on an object
 (define-type ont::on
@@ -729,7 +751,13 @@
 	     (:ESSENTIAL ONT::GROUND (F::Phys-obj))
 	     (:OPTIONAL ONT::NOROLE)
             )
- )
+)
+
+(define-type ont::direction-over
+    :parent ont::direction
+    :wordnet-sense-keys ("over%4:02:01")
+    :comment "relates to changes in position as in -hand it over to me- or changes in orientation as in -knock the lamp over-"
+)
 
 (define-type ont::direction-wrt-entity
     :parent ont::direction
