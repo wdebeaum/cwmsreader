@@ -651,7 +651,7 @@
     )
 
 (define-type ONT::rate-unit
- :wordnet-sense-keys ("miles_per_gallon%1:23:00" "bits_per_second%1:28:00" "gigahertz%1:28:00" "hertz%1:28:00" "kilohertz%1:28:00" "megahertz%1:28:00" "terahertz%1:28:00" "revolutions_per_minute%1:28:00" "words_per_minute%1:28:00")
+ :wordnet-sense-keys ("miles_per_gallon%1:23:00" "revolutions_per_minute%1:28:00" "words_per_minute%1:28:00")
  :parent ONT::formal-unit
  :sem (F::Abstr-obj (F::Scale Ont::Rate-scale))
  :arguments ((:ESSENTIAL ONT::FIGURE ((? type F::phys-obj F::situation)))
@@ -659,9 +659,22 @@
  )
 
 (define-type ONT::speed-unit
- :wordnet-sense-keys ("mph%1:28:01" "miles_per_hour%1:28:01" "kilometers_per_hour%1:28:00" "kilometres_per_hour%1:28:00" "kph%1:28:00" "km/h%1:28:00")
- :parent ONT::rate-unit
- )
+    :wordnet-sense-keys ("mph%1:28:00" "miles_per_hour%1:28:01" "kilometers_per_hour%1:28:00" "kilometres_per_hour%1:28:00" "kph%1:28:00" "km/h%1:28:00")
+    :sem (F::Abstr-obj (F::Scale Ont::speed-scale))
+    :parent ONT::rate-unit
+    )
+
+(define-type ONT::frequency-unit
+    :wordnet-sense-keys ("Hz%1:28:00" "khz%1:28:00" "mhz%1:28:00" "ghz%1:28:00" "thz%1:28:00")
+    :sem (F::Abstr-obj (F::Scale Ont::frequency-scale))
+    :parent ONT::rate-unit
+    )
+
+(define-type ONT::bandwidth-unit
+    :wordnet-sense-keys ("bps%1:28:00" "baud%1:23:00")
+    :sem (F::Abstr-obj (F::Scale Ont::bit-rate-scale))
+    :parent ONT::rate-unit
+    )
 
 ;; bit, byte
 (define-type ONT::memory-UNIT
@@ -710,7 +723,7 @@
 (define-type ONT::LEVEL
   :comment "words that act as map objects to values on a scale/domain: What is the X on this scale?  Note: We exclude words that are identical to the names of the scales they pertain to (e.g., What is the height on the height scale?)"
  :wordnet-sense-keys ("level%1:26:00" "level%1:07:00")
- :sem (F::Abstr-obj (F::Scale Ont::LINEAR-extent-SCALE))
+ :sem (F::Abstr-obj (F::Scale ont::domain))
 ; :parent ONT::ordered-DOMAIN
  :parent ONT::SCALE-VALUE-FUNCTION
  :arguments ((:ESSENTIAL ONT::FIGURE ((? of f::phys-obj F::Abstr-obj))) ;; noise, water
@@ -1233,13 +1246,18 @@
 
 (define-type ont::mental-plan
  :parent ont::ps-object
- :wordnet-sense-keys("plan%1:09:01" "plan%1:09:00" "plan_of_action%1:09:00")
+ :wordnet-sense-keys("plan%1:09:00" "plan_of_action%1:09:00")
  )
 
 (define-type ont::budget
  :parent ont::mental-plan
  :wordnet-sense-keys("budget%1:21:03")
-)
+ )
+
+(define-type ont::design-plan
+ :parent ont::mental-plan
+ :wordnet-sense-keys("design%1:09:01")
+ )
 
 ;; baseline, guideline
 ;(define-type ont::standard
@@ -1397,7 +1415,7 @@
 ;; (health care) assistant
 (define-type ont::assistant
  :wordnet-sense-keys ("assistant%1:18:00" "helper%1:18:01" "help%1:18:00" "supporter%1:18:01")
-  :parent ont::professional ;agent
+  :parent ont::PERSON-DEFINED-BY-ACTIVITY ;professional ;agent
   )
 
 #|
@@ -1410,6 +1428,7 @@
   :parent ONT::representation
 ;  :sem (F::Abstr-obj (F::information F::information-content))
   :sem (F::Abstr-obj (f::origin f::artifact) (F::information F::mental-construct))
+  :wordnet-sense-keys ("computer_code%1:10:00") 
   )
 
 ;; autofill, autocomplete, colorsync, etc.
@@ -1426,7 +1445,8 @@
 
 (define-type ONT::web-browser
   :parent ONT::computer-software
-  )
+  :wordnet-sense-keys ("browser%1:10:00")
+)
 
 (define-type ONT::Linguistic-object
  :wordnet-sense-keys ("language_unit%1:10:00" "linguistic_unit%1:10:00")
@@ -1438,6 +1458,7 @@
 (define-type ONT::number-object
  :parent ONT::number
  :sem (F::Abstr-obj (F::information F::data))
+ :wordnet-sense-keys ("digit%1:23:00")
  )
 
 (define-type ont::language
@@ -1459,12 +1480,14 @@
 ;; html, java, etc.
 (define-type ont::computer-language
  :parent ont::language
- )
+ :wordnet-sense-keys ("markup_language%1:10:00" "programming_language%1:10:00")
+)
 
 ;; mbox, jpeg, doc, txt, etc.
 (define-type ont::file-format
  :parent ont::computer-language
- )
+ :wordnet-sense-keys ("mpeg%1:04:00")
+)
 
 ;;; there is ont::graphic-symbol; this should be related somehow
 (define-type ONT::punctuation
@@ -1490,7 +1513,8 @@
 ;; alpha, beta, ...
 (define-type ONT::greek-letter-symbol
  :parent ONT::letter-symbol
- )
+ :wordnet-sense-keys ("alpha%1:10:00" "beta%1:10:00" "chi%1:10:00" "delta%1:10:00" "epsilon%1:10:00" "eta%1:10:00" "gamma%1:10:00" "iota%1:10:00" "kappa%1:10:00" "lambda%1:10:00" "mu%1:10:00" "nu%1:10:00" "omega%1:10:00" "omicron%1:10:00" "phi%1:10:00" "pi%1:10:00" "psi%1:10:00" "rho%1:10:00" "sigma%1:10:00" "tau%1:10:00" "theta%1:10:00" "upsilon%1:10:00" "xi%1:10:00" "zeta%1:10:00")
+)
 
 (define-type ONT::COST-RELATION
  :parent ONT::predicate
@@ -1543,26 +1567,31 @@
 ;; unique lf for price
 (define-type ONT::PRICE
  :parent ONT::VALUE-COST
-  :arguments ((:REQUIRED ont::FIGURE ((? lo f::phys-obj f::abstr-obj)))
+ :arguments ((:REQUIRED ont::FIGURE ((? lo f::phys-obj f::abstr-obj)))
 	      (:REQUIRED ONT::EXTENT (F::Abstr-obj (F::Scale Ont::money-scale) (f::object-function f::currency)))
-             )
+            )
+ :wordnet-sense-keys ("price%1:07:00" "price%1:07:01" "price%1:07:02" "price%1:21:00" "price%1:21:02")
  )
 
+#|
+;MOVING TO domain-and-attribute-types.lisp
 ;; unique lf for rate, as in gsa rate
 (define-type ont::charge-per-unit
-  :parent ont::value-cost
+  :parent ont::ratio-scale ;value-cost
   )
+|#
 
 ;; for account, grant, credit card
 ;; can we find a way to distinguish between bill (put it on my bill) and grant (put it on my grant)?
 (define-type ONT::ACCOUNT
- :parent ont::value-cost
+ :parent ont::function-object ;value-cost
 ; :parent ONT::ABSTRACT-OBJECT-nontemporal
  :sem (F::Abstr-obj (F::Measure-function F::term)  (f::object-function f::currency) (f::scale ont::money-scale))
   :arguments (
  ;; accounts can belong to individuals, organizations or projects
  (:essential ont::FIGURE ((? lof f::phys-obj f::abstr-obj))))
- )
+ :wordnet-sense-keys ("account%1:26:00" "financial_aid%1:21:00" "fund%1:21:01" "funding%1:21:00" "grant%1:10:00") 
+)
 
 ;; bill, tab
 (define-type ONT::ACCOUNT-PAYABLE
@@ -1596,20 +1625,22 @@
  )
 |#
 
+#|
 ;; diagnostics
 (define-type ont::medical-test
   :parent ont::procedure
   )
+|#
 
 ;; can be either treatment or test -- not sure where to classify but adding WN mappings
 (define-type ont::medical-procedure
-  :wordnet-sense-keys  ("medical_procedure%1:04:00"  "incision%1:04:00" "section%1:04:00" "surgical_incision%1:04:00")
+  :wordnet-sense-keys  ("checkup%1:04:00" "incision%1:04:00" "medical_procedure%1:04:00" "section%1:04:00" "surgical_incision%1:04:00")
   :parent ont::procedure
   )
 
 (define-type ont::medical-diagnostic
   :wordnet-sense-keys ("diagnostic_procedure%1:04:00" "diagnostic_technique%1:04:00")
-  :parent ont::medical-test
+  :parent ont::medical-procedure ;medical-test
   )
 
 (define-type ONT::CONSTRAINT
@@ -1626,13 +1657,15 @@
  :sem (F::Abstr-obj (F::information F::information-content))
  :arguments ((:ESSENTIAL ONT::FIGURE )
              )
+ :wordnet-sense-keys ("name%1:10:00")
  )
 
 (define-type ONT::FIRSTNAME
  :parent ONT::NAME
  :sem (F::Abstr-obj (F::information F::information-content))
  :arguments ((:ESSENTIAL ONT::FIGURE )
-             )
+            )
+ :wordnet-sense-keys ("first_name%1:10:00")
  )
 
 (define-type ONT::LASTNAME
@@ -1640,6 +1673,7 @@
  :sem (F::Abstr-obj (F::information F::information-content))
  :arguments ((:ESSENTIAL ONT::FIGURE )
              )
+ :wordnet-sense-keys ("surname%1:10:00")
  )
 
 (define-type ONT::FULLNAME
@@ -1655,6 +1689,7 @@
  :sem (F::Abstr-obj (F::information F::information-content))
  :arguments ((:ESSENTIAL ONT::FIGURE  (F::phys-obj (F::origin F::artifact) (F::information f::information-content)))
              )
+ :wordnet-sense-keys ("designation%1:10:00" "highness%1:18:00" "sir%1:18:01" "sir%1:18:00")
  )
 
 (define-type ONT::SIGNATURE
@@ -1679,9 +1714,10 @@
 ;; For epa and bee
 
 (define-type ont::definition
-    :parent ont::information-function-object
-    :arguments ((:essential ont::FIGURE))
-    )
+ :parent ont::information-function-object
+ :arguments ((:essential ont::FIGURE))
+ :wordnet-sense-keys ("definition%1:10:00")
+)
 
 ;; changed parent to ont::discipline (from abstract-object)
 ;; 2005.04/20 Added by Myrosia to handle words like algebra, mathematics etc.
@@ -1691,14 +1727,17 @@
     :sem (F::Abstr-obj (F::container +)) ;; why is this container +?
     )
 
+#|
 ;; acid wash
 (define-type ONT::food-prep-process
  :parent ONT::process
  )
+|#
 
 (define-type ONT::eating-plan
  :parent ONT::RECIPE
- )
+ :wordnet-sense-keys ("diet%1:04:00") 
+)
 
 ;; abnormality, irregularity, anomaly
 ;; moved under domain. jena Aug 2017 see not-typical-scale

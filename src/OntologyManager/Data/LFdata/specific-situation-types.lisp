@@ -224,7 +224,7 @@
 (define-type ONT::is-compatible-with
  :wordnet-sense-keys ("accept%2:42:00" "accompany%2:42:00" "agree%2:42:03" "apply%2:42:01" "take%2:42:03")
  :parent ONT::event-of-state
- :arguments ((:REQUIRED ONT::NEUTRAL (F::Phys-obj (F::intentional -)))
+ :arguments ((:REQUIRED ONT::NEUTRAL (F::Phys-obj (F::intentional -) (F::type ont::manufactured-object)))
 	     (:ESSENTIAL ONT::neutral1 ((? tt F::phys-obj F::situation F::abstr-obj))))
  :comment "one object meets some criteria defined by another object"
  )
@@ -1029,9 +1029,11 @@
  )
 
 (define-type ONT::PUSH-LIQUID
- :wordnet-sense-keys ("squirt%2:35:00" "squirt%2:35:10" "sprinkle%2:35:01" "spray%2:35:03" "splash%2:35:04" "splash%2:35:00")
-  :parent ONT::push
-  )
+    :wordnet-sense-keys ("squirt%2:35:00" "squirt%2:35:10" "sprinkle%2:35:01" "spray%2:35:03" "splash%2:35:04" "splash%2:35:00")
+    :parent ONT::push
+    :arguments ((:required ONT::affected (F::Phys-obj (F::form F::liquid) (F::mobility F::movable)))
+		)
+    )
 
 (define-type ont::expectorate
  :wordnet-sense-keys ("expectorate%2:29:00")
@@ -2211,16 +2213,6 @@
     :comment "object is not similar to another with respect to some property"
     )
 
-;; 20120523 GUM change new type
-(define-type ONT::accept-agree
- :wordnet-sense-keys ("grudge%2:37:00" "agree%2:32:00" "agree%2:32:04" "accept%2:32:00" "consent%2:32:00" "go_for%2:32:00" "affirm%2:32:01" "acceptance%1:04:00" "take_a_dare%2:32:00")
- :parent ONT::response
- )
-
-(define-type ONT::compromise
- :wordnet-sense-keys ("compromise%2:32:01" "compromise%2:32:00")
- :parent ONT::accept-agree
- )
 
 (define-type ONT::contest
  :wordnet-sense-keys ("disagree%2:32:00" "differ%2:32:00" "dissent%2:32:01" "take_issue%2:32:00")
@@ -2249,6 +2241,20 @@
  :arguments ((:optional ONT::affected)
  	     (:optional ONT::formal)
              )
+ )
+
+
+(define-type ONT::accept-agree
+ :wordnet-sense-keys ("grudge%2:37:00" "agree%2:32:00" "agree%2:32:04" "accept%2:32:00" "consent%2:32:00" "go_for%2:32:00" "affirm%2:32:01" "acceptance%1:04:00" "take_a_dare%2:32:00")
+ :parent ONT::judgement
+ )
+
+
+(define-type ONT::compromise
+ :wordnet-sense-keys ("compromise%2:32:01" "compromise%2:32:00")
+ :parent ONT::accept-agree
+ :arguments ((:optional ONT::neutral)
+	     )
  )
 
 ;; graduate
@@ -2775,7 +2781,7 @@
 
 (define-type ont::incur-inherit-receive
     :wordnet-sense-keys ("fall%2:40:12" "get%2:39:14" "inherit%2:40:02" "take%2:31:09")
-    :arguments ((:REQUIRED ONT::affected1 ((? tt f::phys-obj f::abstr-obj) (f::intentional -))))
+    :arguments ((:REQUIRED ONT::affected1 ((? tt f::phys-obj f::abstr-obj f::situation) (f::intentional -))))
     :parent ont::event-of-undergoing-action
     )
 
@@ -3099,7 +3105,7 @@
 ;; this needs to be able to have stative ont::effect, as in 'let him know'
 ;; also need to have phys & abstr objects as in "are pets allowed"
 (define-type ONT::Allow
- :wordnet-sense-keys ("allow%2:41:00" )
+ :wordnet-sense-keys ("allow%2:41:00" "permit%2:32:00")
   :parent ONT::CAUSE-EFFECT
  ;; approval for the purchase (sit); budget (abstr); that machine (phys-obj)
   :arguments ((:Required ONT::affected ((? aff F::phys-obj f::abstr-obj f::situation)))
@@ -3437,12 +3443,14 @@
 
 (define-type ONT::push-out-of
  :parent ONT::cause-out-of
- )
+ :wordnet-sense-keys ("expel%2:41:00" "push_out%2:38:00") 
+)
 
 (define-type ONT::pull-out-of
 ; :parent ONT::come-out-of
  :parent ONT::cause-out-of
- )
+ :wordnet-sense-keys ("pull%2:38:03") 
+)
 
 #|
 (define-type ONT::pull-off
@@ -3455,7 +3463,7 @@
 |#
 
 (define-type ONT::socially-remove
-    :wordnet-sense-keys ("banishment%1:04:00" "expel%2:41:01" "expel%2:41:00" "ouster%1:04:00" "repatriate%2:41:01" "debarment%1:04:00")
+    :wordnet-sense-keys ("banishment%1:04:00" "expel%2:41:01" "ouster%1:04:00" "repatriate%2:41:01" "debarment%1:04:00" "purge%2:41:00") ;"expel%2:41:00"
  :parent ONT::cause-come-from
  :arguments (;(:REQUIRED ONT::Formal ((? thm F::phys-obj F::abstr-obj) (F::intentional +)))
 	     (:REQUIRED ONT::affected ((? thm F::phys-obj F::abstr-obj) (F::intentional +)))
@@ -3547,8 +3555,8 @@
  :arguments ((:REQUIRED ONT::formal ((? ttp F::Situation F::phys-obj) (F::Aspect (? asp f::dynamic f::stage-level)))) 
 ;             (:REQUIRED ONT::Duration  (F::abstr-obj (F::scale F::duration-scale)))
              (:REQUIRED ONT::EXTENT  (F::abstr-obj (F::scale ont::duration-scale)))
-             ;;; it will take the truck 5 minutes [to arrive]
-             (:OPTIONAL ONT::neutral (f::phys-obj))
+             ;;; it will take the truck 5 minutes [to arrive  - the meeting lasted five minutes
+             (:OPTIONAL ONT::neutral ((? ccc f::phys-obj f::situation)))
              )
  )
 
@@ -4732,7 +4740,7 @@
 
 ;; for configure, arrange X (into Y) e.g. he arranged them into groups of three
 (define-type ONT::arranging
- :wordnet-sense-keys ("arrange%2:35:00" "reorient%2:30:00" "put_aside%2:35:00" "address%2:32:02" "alternate%2:30:01")
+ :wordnet-sense-keys ("arrange%2:35:00" "reorient%2:30:00" "put_aside%2:35:00" "address%2:32:02" "alternate%2:30:01" "organization%1:04:01")
  :parent ONT::control-manage
  :sem (F::SITUATION (F::Cause F::agentive) (F::Trajectory -))
  :arguments ((:REQUIRED ONT::Agent  ((? agt F::Phys-obj f::abstr-obj) (F::intentional +)))
@@ -5776,8 +5784,11 @@
 
 ;; stretch  20120523 GUM change new type
 (define-type ONT::straddle
- :parent ont::body-movement
- )
+    :parent ont::body-movement
+    :arguments ((:REQUIRED ONT::neutral (F::phys-obj (F::intentional -)))
+		 
+		)
+    )
 
 
 ;; stretch  20120523 GUM change new type

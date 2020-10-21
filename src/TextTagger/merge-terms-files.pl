@@ -46,28 +46,31 @@ for(;;) {
   }
   last unless (defined($min_term)); # all input rows undef, so all files at eof
   # build %unnormalized2triples from the selected input rows, and read new rows
-  # from those files
+  # from those files (and continue to read new rows until the normalized term
+  # is different)
   my %unnormalized2triples = ();
   for my $i (@min_indices) {
-    # get the comma-separated groups of columns in @{$input_rows[$i]} except
-    # the first element, which is the normalized term
-    my $j = 1;
-    my @comma_groups = ();
-    while ($j < @{$input_rows[$i]}) {
-      push @comma_groups, [];
-      while ($j < @{$input_rows[$i]} and $input_rows[$i][$j] ne ',') {
-	push @{$comma_groups[-1]}, $input_rows[$i][$j];
+    while (defined($input_rows[$i]) and $input_rows[$i][0] eq $min_term) {
+      # get the comma-separated groups of columns in @{$input_rows[$i]} except
+      # the first element, which is the normalized term
+      my $j = 1;
+      my @comma_groups = ();
+      while ($j < @{$input_rows[$i]}) {
+	push @comma_groups, [];
+	while ($j < @{$input_rows[$i]} and $input_rows[$i][$j] ne ',') {
+	  push @{$comma_groups[-1]}, $input_rows[$i][$j];
+	  $j++;
+	}
 	$j++;
       }
-      $j++;
+      # the first item in each group is the unnormalized term, so add the rest
+      # to the appropriate hash entry
+      for my $group (@comma_groups) {
+	push @{$unnormalized2triples{$group->[0]}}, @{$group}[1..$#$group];
+      }
+      # read the next row for input $i
+      $input_rows[$i] = read_row($input_files[$i]);
     }
-    # the first item in each group is the unnormalized term, so add the rest to
-    # the appropriate hash entry
-    for my $group (@comma_groups) {
-      push @{$unnormalized2triples{$group->[0]}}, @{$group}[1..$#$group];
-    }
-    # read the next row for input $i
-    $input_rows[$i] = read_row($input_files[$i]);
   }
   # build the output row from %unnormalized2triples
   my @output_row = ($min_term);

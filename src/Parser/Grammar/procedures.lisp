@@ -172,6 +172,19 @@
 	*success*
 	)))
 
+(define-predicate 'w::one-BOUND
+  #'(lambda (args)
+      (one-bound args)))
+
+(defun one-bound (args)
+  "succeeds only if one (or both) of the two constits are both non null"
+  (let ((arg1 (get-fvalue args 'w::arg1))
+	(arg2  (get-fvalue args 'w::arg2)))
+    (if ;(and (non-null-constit subcat) (non-null-constit subcat2))
+	(or (check-if-bound arg1) (check-if-bound arg2))
+	*success*
+	)))
+
 #|
 (defun non-null-constit (x)
   (cond ((var-p x)
@@ -346,6 +359,8 @@
 	 (combined-features
 	  (add-feats-renaming-if-necessary newfeatures oldfeatures))
 	 )
+    (if (> (list-length combined-features) 20)
+	(break "Warning: constituent built with more than 20 features"))
     (if combined-features
 	(match-vals nil newconstraintvar (make-constit :cat '& :feats combined-features))
 	(match-vals nil newconstraintvar oldconstraint)
@@ -492,7 +507,10 @@
       (;;parser-warn 
        break "Warning no value defined for result in call to APPEND-CONJUNCTS: Args are ~S" args))
     (cond
-     ((and (constit-p conj1) (constit-p conj2) (eq (constit-cat conj1) '&) (eq (constit-cat conj2) '&))
+      ((and (constit-p conj1) (constit-p conj2) (eq (constit-cat conj1) '&) (eq (constit-cat conj2) '&))
+       (if (or (> (list-length (constit-feats conj1)) 20)
+	       (> (list-length (constit-feats conj2)) 20))
+	   (break "Warning - constituent build with more than 20 features"))
       (match-vals nil newconjunctvar 
                   (make-constit :cat '& 
                                 :feats (append (constit-feats conj1) 
