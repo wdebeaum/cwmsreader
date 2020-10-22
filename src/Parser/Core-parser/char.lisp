@@ -1,6 +1,6 @@
 (in-package "PARSER")
 ;;
-;; Time-stamp: <Wed Oct 21 17:09:24 EDT 2020 james>
+;; Time-stamp: <Wed Oct 21 16:15:32 CDT 2020 lgalescu>
 
 
 ;;;; This file contains functions converting string input
@@ -153,7 +153,7 @@
 	      (second (car rest))
 	      (third (cadr rest))
 	      (map (or (assoc first *punc-list*)
-		       (if (and (not (alphanumericp first)) (not (eq first #\ )))
+		       (if (and (not (alphanumericp first)) (not (eql first #\Space)))
 			   (list first :punc-unknown)))))
 	(cond 
 	  (map
